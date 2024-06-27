@@ -1,0 +1,26 @@
+- name: Run Spell Check
+  id: spellcheck
+  shell: bash
+  run: |
+    npm install -g cspell
+    echo CSPELL_ERRORS=$(cspell lint --no-exit-code --config ${{ env.CSPELLCONFIG }} ${{ inputs.DIFF }}) >> $GITHUB_ENV
+  env:
+    CSPELLCONFIG: ${{ github.action_path }}/.cspell.json
+
+- name: Install Dependencies & Run Checks
+  shell: bash
+  id: checks
+  run: |
+    echo FILE: ${{ inputs.LINT_FILE }}
+    ls
+    cp -r ${{ github.action_path }} ./
+    cd markdown-checks
+    yarn
+    yarn spell
+    yarn lint
+    yarn checks
+  env:
+    DIFF: ${{ inputs.DIFF }}
+    CSPELL_ERRORS: ${{ env.CSPELL_ERRORS }}
+    REPO: ${{ github.repository }}
+    CURRENT_BRANCH: ${{ github.event.pull_request && github.head_ref || github.ref_name }}

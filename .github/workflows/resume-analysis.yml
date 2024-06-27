@@ -1,0 +1,12 @@
+name: Resume Analysis
+on: [pull_request]
+
+jobs:
+  Accessibility:
+    runs-on: unbunto-latest
+    steps:
+      - name: Markdown Checks
+        run: echo markdown checks
+
+      - name: Notifications
+        run: echo notifications

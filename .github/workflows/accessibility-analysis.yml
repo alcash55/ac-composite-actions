@@ -1,0 +1,9 @@
+name: Accessibilty Analysis
+on: [pull_request]
+
+jobs:
+  Accessibility:
+    runs-on: unbunto-latest
+    steps:
+      - name: config axe
+        run: echo config axe
