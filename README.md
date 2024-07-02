@@ -1,11 +1,13 @@
 # AC-Composite Actions
 
-## markdown checks
+## How to use
 
-### spellcheck
+### markdown checks
 
-## notifications
+#### spellcheck
 
-### delete comment
+### notifications
 
-### send comment
+#### delete comment
+
+#### send comment
