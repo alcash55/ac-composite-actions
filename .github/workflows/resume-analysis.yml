@@ -11,6 +11,9 @@ on:
       PR_NUMBER:
         description: The number that identifies the pull request
         required: true
+      GH_TOKEN:
+        description: The token that identifies the actor who triggered the workflow
+        required: true
 
 jobs:
   Accessibility:
@@ -20,6 +23,7 @@ jobs:
         id: get_secrets
         run: echo secretes
 
+        #fix this repo doesn't exist
       - name: Checkout
         id: checkout
         uses: actions/checkout@v4
@@ -32,6 +36,7 @@ jobs:
         with:
           GITHUB_ORG: ${{ inputs.ORG }}
           PR_NUMBER: ${{ inputs.PR_NUMBER }}
+          GH_TOKEN: ${{inputs.GH_TOKEN}}
 
       - name: Markdown Checks
         id: md_checks
