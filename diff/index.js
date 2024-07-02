@@ -1,20 +1,19 @@
 import { Octokit } from '@octokit/rest';
 import * as core from '@actions/core';
 
-
 /**
 * @type {number}
 */
-const prNumber = parseInt(process.env.PR_NUM);
+const prNumber = parseInt(process.env.PR_NUMBER);
 /**
 * @type {string}
 */
-const ghRepo = process.env.REPO;
-const [owner, repo] = ghRepo.split('/');
+const org = process.env.GITHUB_ORG;
+const [owner, repo] = org.split('/');
 
 
 const octokit = new Octokit({
- auth: process.env.GITHUB_TOKEN,
+ auth: process.env.GH_TOKEN,
 });
 
 
@@ -63,7 +62,7 @@ export function categorizeFiles(files) {
 
 
      // Check that all files are markdown files
-   } else if (file.toLowerCase().endsWith('.md')) {
+   } else if (file.toLowerCase().endsWith('.mdx')) {
      workingFiles.push(file);
    }
  }
@@ -98,8 +97,8 @@ try {
 
 
  if (!filenames.length) {
-   core.notice('No Added/Changed files In Diff');
-   process.exit();
+  core.notice('No Added/Changed files In Diff');
+  process.exit();
  } else {
    core.setOutput('ALL_FILES', filenames);
  }

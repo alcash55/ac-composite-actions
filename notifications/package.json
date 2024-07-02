@@ -10,7 +10,6 @@
     "type": "git",
     "url": "git+https://github.com/alcash55/ac-composite-actions.git"
   },
-  "author": "alcash55",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/alcash55/ac-composite-actions/issues"

@@ -1,12 +1,41 @@
 name: Resume Analysis
-on: [pull_request]
+on:
+  workflow_dispatch:
+    inputs:
+      ORG:
+        description: <github owner/github repo>
+        required: true
+      BRANCH:
+        description: name of branch from calling repository
+        required: true
+      PR_NUMBER:
+        description: The number that identifies the pull request
+        required: true
 
 jobs:
   Accessibility:
     runs-on: unbunto-latest
     steps:
+      - name: Get Secrets if Needed
+        id: get_secrets
+        run: echo secretes
+
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.REPO }}
+
+      - name: Get Diff
+        id: diff
+        uses: alcash55/ac-composite-actions/diff@main
+        with:
+          GITHUB_ORG: ${{ inputs.ORG }}
+          PR_NUMBER: ${{ inputs.PR_NUMBER }}
+
       - name: Markdown Checks
-        run: echo markdown checks
+        id: md_checks
+        uses: alcash55/ac-composite-actions/markdown-checks@main
 
       - name: Notifications
         run: echo notifications

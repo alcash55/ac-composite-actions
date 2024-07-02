@@ -1,0 +1,33 @@
+name: diff
+description: |
+  Get changed files for resume analysis
+  https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#list-pull-requests-files
+
+inputs:
+  PR_NUMBER:
+    description: The number that identifies the pull request
+    required: true
+  GITHUB_ORG:
+    description: <github owner/github repo>
+    required: true
+  GH_TOKEN:
+    description: token for the use triggering the wf
+    required: true
+outputs:
+  DIFF:
+    description: Space delimited list of changed md files
+    value: ${{steps.get_diff.outputs.DIFF}}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get Diff
+      id: get_diff
+      shell: bash
+      run: |
+        yarn
+        yarn diff
+      env:
+        PR_NUMBER: ${{inputs.PR_NUMBER}}
+        GITHUB_ORG: ${{inputs.GITHUB_ORG}}
+        GH_TOKEN: ${{inputs.GH_TOKEN}}
