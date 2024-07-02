@@ -32,7 +32,9 @@ jobs:
           # ##*/ matches everything up to and including the last / character.
           # Therefore, ${path##*/} returns "world" because it removes "hello/" from the beginning of "hello/world".
           repository: "${{ inputs.ORG }}##*/"
-          ref: ${{inputs.BRANCH}}
+          ref: ${{ inputs.BRANCH }}
+
+      - run: echo "${{ inputs.ORG }}##*/"
 
       - name: Get Diff
         id: diff
@@ -40,12 +42,21 @@ jobs:
         with:
           GITHUB_ORG: ${{ inputs.ORG }}
           PR_NUMBER: ${{ inputs.PR_NUMBER }}
-          GH_TOKEN: ${{inputs.GH_TOKEN}}
+          GH_TOKEN: ${{ inputs.GH_TOKEN }}
 
       - name: Markdown Checks
         id: md_checks
         uses: alcash55/ac-composite-actions/markdown-checks@main
 
+      - name: Create Message
+        id: create_msg
+        uses: alcash55/ac-composite-actions/format-message@main
+
       - name: Notifications
-        if: notify
+        id: notify
         uses: alcash55/ac-composite-actions/notifications@main
+        with:
+          GITHUB_ORG: ${{ inputs.ORG }}
+          PR_NUMBER: ${{ inputs.PR_NUMBER }}
+          GH_TOKEN: ${{ inputs.GH_TOKEN }}
+          MESSAGE_TYPE: "github"

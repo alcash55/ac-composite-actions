@@ -20,19 +20,19 @@ import * as core from '@actions/core';
 /**
 * @type {string}
 */
-const ghRepo = process.env.REPO;
+const org = process.env.ORG;
 /**
 * @type {string[]}
 */
-const [owner, repo] = ghRepo.split('/');
+const [owner, repo] = org.split('/');
 /**
 * @type {number}
 */
-const prNumber = parseInt(process.env.PR_NUM);
+const prNumber = parseInt(process.env.PR_NUMBER);
 /**
 * @type {string}
 */
-const ghToken = process.env.GITHUB_TOKEN;
+const ghToken = process.env.GH_TOKEN;
 
 
 const octokit = new Octokit({

@@ -28,6 +28,6 @@ runs:
         yarn
         yarn diff
       env:
-        PR_NUMBER: ${{inputs.PR_NUMBER}}
-        GITHUB_ORG: ${{inputs.GITHUB_ORG}}
-        GH_TOKEN: ${{inputs.GH_TOKEN}}
+        PR_NUMBER: ${{ inputs.PR_NUMBER }}
+        GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
+        GH_TOKEN: ${{ inputs.GH_TOKEN }}

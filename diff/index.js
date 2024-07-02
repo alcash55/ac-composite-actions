@@ -9,6 +9,9 @@ const prNumber = parseInt(process.env.PR_NUMBER);
 * @type {string}
 */
 const org = process.env.GITHUB_ORG;
+/**
+ * @type {string[]}
+ */
 const [owner, repo] = org.split('/');
 
 

@@ -4,6 +4,9 @@
   "description": "Notifications for Markdown Checks",
   "main": "index.js",
   "scripts": {
+    "sendGithubMessage": "",
+    "deleteGithubMessage": "",
+    "discordMessage": "",
     "test": "test"
   },
   "repository": {

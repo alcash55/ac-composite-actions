@@ -1,0 +1,47 @@
+name: notifications
+description: Send notifications through github and discord
+
+inputs:
+  MESSAGE:
+    description: Message to be sent to either Discord or GitHub
+    required: true
+  MESSAGE_TYPE:
+    description: Where to send the message, 'discord' or 'github'
+    required: true
+  GITHUB_ORG:
+    description: <github owner/github repo>
+    required: false
+  PR_NUMBER:
+    description: The number that identifies the pull request
+    required: false
+
+
+runs:
+  using: "composite"
+  steps:
+    - name: Delete Old GitHub Pull Request Comment (if exists)
+      id: delete_stale_msg
+      if: ${{ inputs.MESSAGE_TYPE }} == 'github'
+      run: |
+        yarn
+        yarn deleteGithubMessage
+      env:
+        GH_TOKEN: ${{ inputs.GH_TOKEN }}
+        PR_NUMBER: ${{ inputs.PR_NUMBER }}
+        ORG: ${{ inputs.GITHUB_ORG }}
+        PR_NUMBER: ${{ inputs.PR_NUMBER }}
+
+
+    - name: Send GitHub Pull Request Comment
+      id: pr_msg
+      if: ${{ inputs.MESSAGE_TYPE }} == 'github'
+      run: |
+        yarn
+        yarn sendGithubMessage
+
+     - name: Send Discord Message
+      id: pr_msg
+      if: ${{ inputs.MESSAGE_TYPE }} == 'discord'
+      run: |
+        yarn
+        yarn discordMessage
