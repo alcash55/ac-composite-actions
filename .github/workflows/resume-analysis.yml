@@ -16,7 +16,7 @@ on:
         required: true
 
 jobs:
-  Accessibility:
+  Analysis:
     runs-on: unbunto-latest
     steps:
       - name: Get Secrets if Needed
