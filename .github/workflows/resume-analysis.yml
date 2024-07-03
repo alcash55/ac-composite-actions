@@ -3,16 +3,16 @@ on:
   workflow_call:
     inputs:
       ORG:
-        description: <github owner/github repo>
+        description: "GitHub owner and repository name (e.g., 'username/repository')"
         required: true
       BRANCH:
-        description: name of branch from calling repository
+        description: "Name of the branch from the calling repository"
         required: true
       PR_NUMBER:
-        description: The number that identifies the pull request
+        description: "The number that identifies the pull request"
         required: true
       GH_TOKEN:
-        description: The token that identifies the actor who triggered the workflow
+        description: "The token that identifies the actor who triggered the workflow"
         required: true
 
 jobs:
@@ -23,7 +23,6 @@ jobs:
         id: get_secrets
         run: echo secretes
 
-        #fix this repo doesn't exist
       - name: Checkout
         id: checkout
         uses: actions/checkout@v4
