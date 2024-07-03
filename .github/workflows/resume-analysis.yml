@@ -1,6 +1,6 @@
 name: Resume Analysis
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       ORG:
         description: <github owner/github repo>
