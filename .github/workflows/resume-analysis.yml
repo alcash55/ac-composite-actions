@@ -5,15 +5,19 @@ on:
       ORG:
         description: "GitHub owner and repository name (e.g., 'username/repository')"
         required: true
+        type: string
       BRANCH:
         description: "Name of the branch from the calling repository"
         required: true
+        type: string
       PR_NUMBER:
         description: "The number that identifies the pull request"
         required: true
+        type: number
       GH_TOKEN:
         description: "The token that identifies the actor who triggered the workflow"
         required: true
+        type: string
 
 jobs:
   Analysis:
