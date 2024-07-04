@@ -14,6 +14,11 @@ const org = process.env.GITHUB_ORG;
  */
 const [owner, repo] = org.split('/');
 
+if(!process.env.GH_TOKEN){
+  core.error(`missing GH TOKEN`)
+  console.log(`missing GH TOKEN`)
+}
+
 
 const octokit = new Octokit({
  auth: process.env.GH_TOKEN,
