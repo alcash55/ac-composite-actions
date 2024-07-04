@@ -14,10 +14,10 @@ on:
         description: "The number that identifies the pull request"
         required: true
         type: number
+    secrets:
       GH_TOKEN:
         description: "The token that identifies the actor who triggered the workflow"
         required: true
-        type: string
 
 jobs:
   analysis:
