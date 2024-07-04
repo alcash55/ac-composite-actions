@@ -1,23 +1,5 @@
 name: Resume Analysis
 on:
-  workflow_dispatch:
-    inputs:
-      ORG:
-        description: "GitHub owner and repository name (e.g., 'username/repository')"
-        required: true
-        type: string
-      BRANCH:
-        description: "Name of the branch from the calling repository"
-        required: true
-        type: string
-      PR_NUMBER:
-        description: "The number that identifies the pull request"
-        required: true
-        type: number
-      GH_TOKEN:
-        description: "The token that identifies the actor who triggered the workflow"
-        required: true
-        type: string
   workflow_call:
     inputs:
       ORG:
@@ -45,6 +27,15 @@ jobs:
         id: get_secrets
         run: echo secretes
 
+      - name: Get Repository Name
+        id: extract_repo
+        run: |
+          const org = ${{inputs.ORG}}
+          [org, repo] = org.split('/')
+          console.log( REPOSITORY=$(repo) >> $GITHUB_OUTPUT)
+
+      - run: echo "${{ steps.extract_repo.outputs.REPOSITORY }}"
+
       - name: Checkout
         id: checkout
         uses: actions/checkout@v4
@@ -52,10 +43,8 @@ jobs:
           # In the context of "hello/world"
           # ##*/ matches everything up to and including the last / character.
           # Therefore, ${path##*/} returns "world" because it removes "hello/" from the beginning of "hello/world".
-          repository: "${{ inputs.ORG }}##*/"
+          repository: "${{ steps.extract_repo.outputs.REPOSITORY }}"
           ref: ${{ inputs.BRANCH }}
-
-      - run: echo "${{ inputs.ORG }}##*/"
 
       - name: Get Diff
         id: diff
