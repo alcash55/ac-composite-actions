@@ -14,16 +14,9 @@ const org = process.env.GITHUB_ORG;
  */
 const [owner, repo] = org.split('/');
 
-if(!process.env.GH_TOKEN){
-  core.error(`missing GH TOKEN`)
-  console.log(`missing GH TOKEN`)
-}
-
-
 const octokit = new Octokit({
  auth: process.env.GH_TOKEN,
 });
-
 
 /**
 * Retrieves the list of files in the pull request, checks their validity, and sets outputs.
@@ -39,11 +32,9 @@ async function getChangedFilenames() {
      pull_number: prNumber,
    });
 
-
    const filenames = response
      .filter(({ status }) => status !== 'removed')
      .map((file) => file.filename);
-
 
    return filenames;
  } catch (e) {
@@ -51,7 +42,6 @@ async function getChangedFilenames() {
    return [];
  }
 }
-
 
 /**
 * Checks the validity of file names and sorts based on working and error files.
@@ -62,12 +52,10 @@ export function categorizeFiles(files) {
  let errorFiles = [];
  let workingFiles = [];
 
-
  for (const file of files) {
    // Check for spaces
    if (!file.match(/^\S+$/)) {
      errorFiles.push(file);
-
 
      // Check that all files are markdown files
    } else if (file.toLowerCase().endsWith('.mdx')) {
@@ -75,10 +63,8 @@ export function categorizeFiles(files) {
    }
  }
 
-
  return { workingFiles, errorFiles };
 }
-
 
 /**
 * Formats error messages for files with invalid names.
@@ -87,7 +73,6 @@ export function categorizeFiles(files) {
 export function formatErrorMsg(errorFiles) {
  let structure = '';
  let title = '# Broken Links\n';
-
 
  for (const errorFile of errorFiles) {
    structure +=
@@ -99,10 +84,8 @@ export function formatErrorMsg(errorFiles) {
  return title + structure;
 }
 
-
 try {
  const filenames = await getChangedFilenames();
-
 
  if (!filenames.length) {
   core.notice('No Added/Changed files In Diff');
@@ -111,10 +94,8 @@ try {
    core.setOutput('ALL_FILES', filenames);
  }
 
-
  // sort working files vs error files
  const { errorFiles, workingFiles } = categorizeFiles(filenames);
-
 
  if (errorFiles.length) {
    const errorMessage = formatErrorMsg(errorFiles);
@@ -123,7 +104,6 @@ try {
    core.notice('No Error Files In Diff');
    core.setOutput('ERROR_FILES', ' ');
  }
-
 
  if (workingFiles.length) {
    console.log('Working files:\n', workingFiles.join('\n'));
