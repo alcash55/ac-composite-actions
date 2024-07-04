@@ -65,19 +65,21 @@ jobs:
           PR_NUMBER: ${{ inputs.PR_NUMBER }}
           GH_TOKEN: ${{ inputs.GH_TOKEN }}
 
-      - name: Markdown Checks
-        id: md_checks
-        uses: alcash55/ac-composite-actions/markdown-checks@main
+      - run: echo ${{steps.diff.outputs.DIFF}}
 
-      - name: Create Message
-        id: create_msg
-        uses: alcash55/ac-composite-actions/format-message@main
+      # - name: Markdown Checks
+      #   id: md_checks
+      #   uses: alcash55/ac-composite-actions/markdown-checks@main
 
-      - name: Notifications
-        id: notify
-        uses: alcash55/ac-composite-actions/notifications@main
-        with:
-          GITHUB_ORG: ${{ inputs.ORG }}
-          PR_NUMBER: ${{ inputs.PR_NUMBER }}
-          GH_TOKEN: ${{ inputs.GH_TOKEN }}
-          MESSAGE_TYPE: "github"
+      # - name: Create Message
+      #   id: create_msg
+      #   uses: alcash55/ac-composite-actions/format-message@main
+
+      # - name: Notifications
+      #   id: notify
+      #   uses: alcash55/ac-composite-actions/notifications@main
+      #   with:
+      #     GITHUB_ORG: ${{ inputs.ORG }}
+      #     PR_NUMBER: ${{ inputs.PR_NUMBER }}
+      #     GH_TOKEN: ${{ inputs.GH_TOKEN }}
+      #     MESSAGE_TYPE: "github"
