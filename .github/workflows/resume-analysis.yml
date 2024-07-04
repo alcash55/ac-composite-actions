@@ -27,7 +27,7 @@ jobs:
       #   id: get_secrets
       #   run: echo secretes
 
-      - name: Get Diff
+      - name: 🔍 Get Diff
         id: diff
         uses: alcash55/ac-composite-actions/diff@main
         with:
@@ -35,17 +35,17 @@ jobs:
           PR_NUMBER: ${{ inputs.PR_NUMBER }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      - name: Markdown Checks
+      - name: 📝 Markdown Checks
         id: md_checks
         uses: alcash55/ac-composite-actions/markdown-checks@main
         with:
           DIFF: ${{ steps.diff.outputs.DIFF }}
 
-      # - name: Create Message
+      # - name: ➕ Create Message
       #   id: create_msg
       #   uses: alcash55/ac-composite-actions/format-message@main
 
-      # - name: Notifications
+      # - name: 🔔 Notifications
       #   id: notify
       #   uses: alcash55/ac-composite-actions/notifications@main
       #   with:
