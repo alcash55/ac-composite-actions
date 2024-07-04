@@ -1,5 +1,6 @@
 name: Accessibilty Analysis
-on: [pull_request]
+on:
+  workflow_call:
 
 jobs:
   Accessibility:
