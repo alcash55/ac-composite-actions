@@ -3,6 +3,7 @@
     "version": "1.0.0",
     "description": "Get the Pull Reqeust Changed Files",
     "main": "index.js",
+    "type": "module",
     "scripts": {
         "diff": "node index.js",
         "test": "vitest"

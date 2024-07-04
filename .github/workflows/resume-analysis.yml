@@ -27,25 +27,6 @@ jobs:
       #   id: get_secrets
       #   run: echo secretes
 
-      # - name: Get Repository Name
-      #   id: extract_repo
-      #   run: |
-      #     org="${{ inputs.ORG }}"
-      #     repo=$(echo "$org" | cut -d'/' -f2)
-      #     echo "REPOSITORY=$repo" >> $GITHUB_ENV
-
-      # - run: echo "${{ steps.extract_repo.outputs.REPOSITORY }}"
-
-      # - name: Checkout
-      #   id: checkout
-      #   uses: actions/checkout@v4
-      #   with:
-      # In the context of "hello/world"
-      # ##*/ matches everything up to and including the last / character.
-      # Therefore, ${path##*/} returns "world" because it removes "hello/" from the beginning of "hello/world".
-      # repository: "${{ steps.extract_repo.outputs.REPOSITORY }}"
-      # ref: ${{ inputs.BRANCH }}
-
       - name: Get Diff
         id: diff
         uses: alcash55/ac-composite-actions/diff@main
