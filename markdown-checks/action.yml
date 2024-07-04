@@ -9,7 +9,7 @@ inputs:
   id: spellcheck
   shell: bash
   run: |
-    npm install -g cspell
+    yarn global add cspell
     echo CSPELL_ERRORS=$(cspell lint --no-exit-code --config ${{ env.CSPELLCONFIG }} ${{ inputs.DIFF }}) >> $GITHUB_ENV
   env:
     CSPELLCONFIG: ${{ github.action_path }}/.cspell.json
