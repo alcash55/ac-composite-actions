@@ -25,8 +25,6 @@ runs:
       id: get_diff
       shell: bash
       run: |
-        cd ${{ github.action_path }}
-        ls
         yarn
         yarn diff
       env:
