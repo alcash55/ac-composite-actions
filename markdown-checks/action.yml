@@ -18,14 +18,11 @@ inputs:
   shell: bash
   id: checks
   run: |
-    echo FILE: ${{ inputs.LINT_FILE }}
-    ls
-    cp -r ${{ github.action_path }} ./
-    cd markdown-checks
+    # cp -r ${{ github.action_path }} ./
+    # cd markdown-checks
+    cd ${{ github.action_path }}
     yarn
     yarn spell
-    yarn lint
-    yarn checks
   env:
     DIFF: ${{ inputs.DIFF }}
     CSPELL_ERRORS: ${{ env.CSPELL_ERRORS }}

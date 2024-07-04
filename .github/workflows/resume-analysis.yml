@@ -35,11 +35,11 @@ jobs:
           PR_NUMBER: ${{ inputs.PR_NUMBER }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      - run: echo ${{steps.diff.outputs.DIFF}}
-
-      # - name: Markdown Checks
-      #   id: md_checks
-      #   uses: alcash55/ac-composite-actions/markdown-checks@main
+      - name: Markdown Checks
+        id: md_checks
+        uses: alcash55/ac-composite-actions/markdown-checks@main
+        with:
+          DIFF: ${{ steps.diff.outputs.DIFF }}
 
       # - name: Create Message
       #   id: create_msg
