@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  Accessibility:
-    runs-on: unbunto-latest
+  accessibility:
+    runs-on: ubuntu-latest
     steps:
       - name: config axe
         run: echo config axe

@@ -38,8 +38,8 @@ on:
         type: string
 
 jobs:
-  Analysis:
-    runs-on: unbunto-latest
+  analysis:
+    runs-on: ubuntu-latest
     steps:
       - name: Get Secrets if Needed
         id: get_secrets
