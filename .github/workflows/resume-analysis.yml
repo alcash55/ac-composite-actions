@@ -23,28 +23,28 @@ jobs:
   analysis:
     runs-on: ubuntu-latest
     steps:
-      - name: Get Secrets if Needed
-        id: get_secrets
-        run: echo secretes
+      # - name: Get Secrets if Needed
+      #   id: get_secrets
+      #   run: echo secretes
 
-      - name: Get Repository Name
-        id: extract_repo
-        run: |
-          const org = ${{inputs.ORG}}
-          [org, repo] = org.split('/')
-          console.log( REPOSITORY=$(repo) >> $GITHUB_OUTPUT)
+      # - name: Get Repository Name
+      #   id: extract_repo
+      #   run: |
+      #     org="${{ inputs.ORG }}"
+      #     repo=$(echo "$org" | cut -d'/' -f2)
+      #     echo "REPOSITORY=$repo" >> $GITHUB_ENV
 
-      - run: echo "${{ steps.extract_repo.outputs.REPOSITORY }}"
+      # - run: echo "${{ steps.extract_repo.outputs.REPOSITORY }}"
 
-      - name: Checkout
-        id: checkout
-        uses: actions/checkout@v4
-        with:
-          # In the context of "hello/world"
-          # ##*/ matches everything up to and including the last / character.
-          # Therefore, ${path##*/} returns "world" because it removes "hello/" from the beginning of "hello/world".
-          repository: "${{ steps.extract_repo.outputs.REPOSITORY }}"
-          ref: ${{ inputs.BRANCH }}
+      # - name: Checkout
+      #   id: checkout
+      #   uses: actions/checkout@v4
+      #   with:
+      # In the context of "hello/world"
+      # ##*/ matches everything up to and including the last / character.
+      # Therefore, ${path##*/} returns "world" because it removes "hello/" from the beginning of "hello/world".
+      # repository: "${{ steps.extract_repo.outputs.REPOSITORY }}"
+      # ref: ${{ inputs.BRANCH }}
 
       - name: Get Diff
         id: diff
