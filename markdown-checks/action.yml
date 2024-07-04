@@ -18,8 +18,6 @@ inputs:
   shell: bash
   id: checks
   run: |
-    # cp -r ${{ github.action_path }} ./
-    # cd markdown-checks
     cd ${{ github.action_path }}
     yarn
     yarn spell
@@ -28,3 +26,6 @@ inputs:
     CSPELL_ERRORS: ${{ env.CSPELL_ERRORS }}
     REPO: ${{ github.repository }}
     CURRENT_BRANCH: ${{ github.event.pull_request && github.head_ref || github.ref_name }}
+
+# cp -r ${{ github.action_path }} ./
+# cd markdown-checks
