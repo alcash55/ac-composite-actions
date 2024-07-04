@@ -1,7 +1,7 @@
 {
-    "name": "notifications",
+    "name": "checks",
     "version": "1.0.0",
-    "description": "Notifications for Markdown Checks",
+    "description": "Markdown Checks",
     "main": "index.js",
     "type": "module",
     "scripts": {
