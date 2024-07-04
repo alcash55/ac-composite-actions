@@ -58,7 +58,7 @@ export function categorizeFiles(files) {
      errorFiles.push(file);
 
      // Check that all files are markdown files
-   } else if (file.toLowerCase().endsWith('.mdx')) {
+   } else if (file.toLowerCase().endsWith('.mdx') || file.toLowerCase().endsWith('.md')) {
      workingFiles.push(file);
    }
  }
