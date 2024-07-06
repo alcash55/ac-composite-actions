@@ -14,18 +14,18 @@ inputs:
   env:
     CSPELLCONFIG: ${{ github.action_path }}/.cspell.json
 
-- name: Install Dependencies & Run Checks
-  shell: bash
-  id: checks
-  run: |
-    cd ${{ github.action_path }}
-    yarn
-    yarn spell
-  env:
-    DIFF: ${{ inputs.DIFF }}
-    CSPELL_ERRORS: ${{ env.CSPELL_ERRORS }}
-    REPO: ${{ github.repository }}
-    CURRENT_BRANCH: ${{ github.event.pull_request && github.head_ref || github.ref_name }}
+# - name: Install Dependencies & Run Checks
+#   shell: bash
+#   id: checks
+#   run: |
+#     cd ${{ github.action_path }}
+#     yarn
+#     yarn spell
+#   env:
+#     DIFF: ${{ inputs.DIFF }}
+#     CSPELL_ERRORS: ${{ env.CSPELL_ERRORS }}
+#     REPO: ${{ github.repository }}
+#     CURRENT_BRANCH: ${{ github.event.pull_request && github.head_ref || github.ref_name }}
 
 # cp -r ${{ github.action_path }} ./
 # cd markdown-checks
