@@ -10,9 +10,7 @@ inputs:
   shell: bash
   run: |
     yarn global add cspell
-    echo CSPELL_ERRORS=$(cspell lint --no-exit-code --config ${{ env.CSPELLCONFIG }} ${{ inputs.DIFF }}) >> $GITHUB_ENV
-  env:
-    CSPELLCONFIG: ${{ github.action_path }}/.cspell.json
+    echo CSPELL_ERRORS=$(cspell lint --no-exit-code --config  ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }}) >> $GITHUB_ENV
 
 # - name: Install Dependencies & Run Checks
 #   shell: bash
