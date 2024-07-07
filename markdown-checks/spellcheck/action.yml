@@ -22,7 +22,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Run Spell Check
+    - name: 🔠 Spell Check
       id: spellcheck
       shell: bash
       if: ${{ inputs.DIFF }} != ''
@@ -35,6 +35,10 @@ runs:
         GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         BRANCH: ${{ inputs.BRANCH }}
+
+    - name: test
+      shell: bash
+      run: echo ${{ steps.spellcheck.outputs.SPELL_ERRORS }}
 # yarn add cspell
 # CSPELL_ERRORS=$(cspell lint --no-exit-code --config ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }})
 # echo "CSPELL_ERRORS=$(CSPELL_ERRORS)" >> $GITHUB_OUTPUT
