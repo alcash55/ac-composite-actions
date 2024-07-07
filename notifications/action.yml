@@ -15,7 +15,6 @@ inputs:
     description: The number that identifies the pull request
     required: false
 
-
 runs:
   using: "composite"
   steps:
@@ -31,7 +30,6 @@ runs:
         PR_NUMBER: ${{ inputs.PR_NUMBER }}
         ORG: ${{ inputs.GITHUB_ORG }}
 
-
     - name: Send GitHub Pull Request Comment
       id: pr_msg
       shell: bash
@@ -44,8 +42,7 @@ runs:
         PR_NUMBER: ${{ inputs.PR_NUMBER }}
         ORG: ${{ inputs.GITHUB_ORG }}
 
-
-     - name: Send Discord Message
+    - name: Send Discord Message
       id: pr_msg
       shell: bash
       if: ${{ inputs.MESSAGE_TYPE }} == 'discord'
