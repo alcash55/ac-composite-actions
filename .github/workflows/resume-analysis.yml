@@ -47,6 +47,8 @@ jobs:
         uses: alcash55/ac-composite-actions/format-message@main
         with:
           SPELL_MESSAGE: ${{ steps.spell_check.outputs.SPELL_ERRORS }}
+          GITHUB_ORG: ${{ inputs.ORG }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: 🔔 Send Notifications
         id: notify

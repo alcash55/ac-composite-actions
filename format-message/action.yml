@@ -5,6 +5,12 @@ inputs:
   SPELL_MESSAGE:
     description: Unformatted spell check message
     required: true
+  GITHUB_ORG:
+    description: <github owner/github repo>
+    required: true
+  GH_TOKEN:
+    description: token for the use triggering the wf
+    required: true
 
 outputs:
   FORMATTED_MESSAGE:
@@ -23,3 +29,5 @@ runs:
         yarn format
       env:
         SPELL_MESSAGE: ${{ inputs.SPELL_MESSAGE }}
+        GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
+        GH_TOKEN: ${{ inputs.GH_TOKEN }}
