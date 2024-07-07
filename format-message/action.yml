@@ -18,6 +18,7 @@ runs:
       shell: bash
       id: format_msg
       run: |
+        cd ${{ github.action_path }} 
         yarn
         yarn format
       env:

@@ -23,6 +23,7 @@ runs:
       shell: bash
       if: ${{ inputs.MESSAGE_TYPE }} == 'github'
       run: |
+        cd ${{ github.action_path }}
         yarn
         yarn deleteGithubMessage
       env:
@@ -35,6 +36,7 @@ runs:
       shell: bash
       if: ${{ inputs.MESSAGE_TYPE }} == 'github'
       run: |
+        cd ${{ github.action_path }}
         yarn
         yarn sendGithubMessage
       env:
@@ -47,5 +49,6 @@ runs:
       shell: bash
       if: ${{ inputs.MESSAGE_TYPE }} == 'discord'
       run: |
+        cd ${{ github.action_path }}
         yarn
         yarn discordMessage
