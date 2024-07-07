@@ -36,6 +36,9 @@ jobs:
         uses: alcash55/ac-composite-actions/markdown-checks/spellcheck@main
         with:
           DIFF: ${{ steps.diff.outputs.DIFF }}
+          GITHUB_ORG: ${{ inputs.ORG }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          BRANCH: ${{ inputs.BRANCH }}
 
       # - name: 🖨️ ATS Check
       #     id: ats_check
@@ -47,8 +50,6 @@ jobs:
         uses: alcash55/ac-composite-actions/format-message@main
         with:
           SPELL_MESSAGE: ${{ steps.spell_check.outputs.SPELL_ERRORS }}
-          GITHUB_ORG: ${{ inputs.ORG }}
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: 🔔 Send Notifications
         id: notify
