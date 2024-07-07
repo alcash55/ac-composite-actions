@@ -1,1 +1,15 @@
 # https://blog.apilayer.com/everything-you-need-to-know-for-the-resume-parser-api/
+name: ATS Check
+description: Use resume as PDF and see if compliant
+inputs:
+  RESUME:
+    description:
+    required:
+
+runs:
+  using: "composite"
+  steps:
+    name: ATS Check
+    id: ats_check
+    shell: bash
+    run: echo ATS Check

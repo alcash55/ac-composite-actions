@@ -21,6 +21,7 @@ runs:
   steps:
     - name: Delete Old GitHub Pull Request Comment (if exists)
       id: delete_stale_msg
+      shell: bash
       if: ${{ inputs.MESSAGE_TYPE }} == 'github'
       run: |
         yarn
@@ -34,6 +35,7 @@ runs:
 
     - name: Send GitHub Pull Request Comment
       id: pr_msg
+      shell: bash
       if: ${{ inputs.MESSAGE_TYPE }} == 'github'
       run: |
         yarn
@@ -41,6 +43,7 @@ runs:
 
      - name: Send Discord Message
       id: pr_msg
+      shell: bash
       if: ${{ inputs.MESSAGE_TYPE }} == 'discord'
       run: |
         yarn
