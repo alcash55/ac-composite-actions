@@ -58,30 +58,13 @@ async function getFileContent(path) {
  */
 function spellCheck(path, fileContent) {
   let spellError = {};
-  const cspellConfig = {
-    version: "0.2",
-    language: "en",
-
-    words: [
-      "mkdirp",
-      "tsmerge",
-      "githubusercontent",
-      "streetsidesoftware",
-      "vsmarketplacebadge",
-      "visualstudio",
-      "Voyix",
-      "NCR",
-    ],
-
-    files: ["**/*.md", "**/*.mdx"],
-  };
 
   try {
     // Temporarily write file content to a temporary file for cspell to read
     const tempFilePath = "tempFile.txt";
     writeFileSync(tempFilePath, fileContent, "utf-8");
 
-    const spellCommand = `cspell lint --no-exit-code ${tempFilePath}`;
+    const spellCommand = `cspell lint --no-exit-code --config .cspell.json ${tempFilePath}`;
 
     // Run cspell command synchronously
     const cspellOutput = execSync(spellCommand, {
