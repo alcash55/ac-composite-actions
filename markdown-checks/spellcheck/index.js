@@ -25,9 +25,6 @@ const octokit = new Octokit({
   auth: process.env.GH_TOKEN,
 });
 
-console.log("branch: ", branch);
-console.log("org: ", org);
-
 /**
  * Fetch file content using GitHub API
  * @see https://octokit.github.io/rest.js/v20#repos-get-content
@@ -35,7 +32,6 @@ console.log("org: ", org);
  * @returns {Promise<string>}
  */
 async function getFileContent(path) {
-  console.log("path: ", path);
   try {
     const { data } = await octokit.repos.getContent({
       owner: owner,
@@ -58,13 +54,13 @@ async function getFileContent(path) {
  * @see https://github.com/streetsidesoftware/cspell-cli?tab=readme-ov-file#lint
  * @param {string} fileContent
  * @param {string} path
- * @returns {string}
+ * @returns {object}
  */
 function spellCheck(path, fileContent) {
-  let spellError = "";
+  let spellError = {};
   try {
     // Temporarily write file content to a temporary file for cspell to read
-    const tempFilePath = path;
+    const tempFilePath = "tempFile.txt";
     writeFileSync(tempFilePath, fileContent, "utf-8");
 
     const spellCommand = `cspell lint --no-exit-code --config ${cspellConfig} ${tempFilePath}`;
@@ -74,7 +70,7 @@ function spellCheck(path, fileContent) {
       encoding: "utf-8",
     });
 
-    spellError = cspellOutput;
+    spellError = { file: path, output: cspellOutput };
 
     // Remove temporary file
     unlinkSync(tempFilePath);
