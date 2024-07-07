@@ -13,14 +13,10 @@ outputs:
 runs:
   using: composite
   steps:
-    - run: echo ${{ inputs.DIFF }}
-      shell: bash
-
     - name: Run Spell Check
       id: spellcheck
       shell: bash
+      if: ${{ inputs.DIFF }} != ''
       run: |
-        yarn global add cspell
-        ls
-        CSPELL_ERRORS=$(cspell lint --no-exit-code --config  ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }})
-        echo "CSPELL_ERRORS=${CSPELL_ERRORS}" >> $GITHUB_OUTPUT
+        CSPELL_ERRORS=$(npx cspell lint --no-exit-code --config  ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }})
+        echo "CSPELL_ERRORS=$(CSPELL_ERRORS)" >> $GITHUB_OUTPUT
