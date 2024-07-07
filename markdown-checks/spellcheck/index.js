@@ -65,7 +65,7 @@ function spellCheck(path, fileContent) {
 
   try {
     // Temporarily write file content to a temporary file for cspell to read
-    const tempFilePath = "tempFile.txt";
+    const tempFilePath = "tempFile.mdx";
     writeFileSync(tempFilePath, fileContent, "utf-8");
 
     const spellCommand = `cspell lint --no-exit-code --config ${cspellConfig} ${tempFilePath}`;
