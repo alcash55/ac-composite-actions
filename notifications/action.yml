@@ -19,7 +19,7 @@ runs:
   using: "composite"
   steps:
     - name: Delete Old GitHub Pull Request Comment (if exists)
-      id: delete_stale_msg
+      id: delete_pr_msg
       shell: bash
       if: ${{ inputs.MESSAGE_TYPE }} == 'github'
       run: |
@@ -31,7 +31,7 @@ runs:
         ORG: ${{ inputs.GITHUB_ORG }}
 
     - name: Send GitHub Pull Request Comment
-      id: pr_msg
+      id: send_pr_msg
       shell: bash
       if: ${{ inputs.MESSAGE_TYPE }} == 'github'
       run: |
@@ -43,7 +43,7 @@ runs:
         ORG: ${{ inputs.GITHUB_ORG }}
 
     - name: Send Discord Message
-      id: pr_msg
+      id: send_discord_msg
       shell: bash
       if: ${{ inputs.MESSAGE_TYPE }} == 'discord'
       run: |
