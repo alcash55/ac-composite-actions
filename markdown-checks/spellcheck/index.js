@@ -75,7 +75,12 @@ function spellCheck(path, fileContent) {
       encoding: "utf-8",
     });
 
-    spellError = { file: path, output: cspellOutput };
+    if (!cspellOutput) {
+      console.log("error: ", cspellOutput);
+      console.log(`No errors in file: ${path}`);
+    } else {
+      spellError = { file: path, output: cspellOutput };
+    }
 
     // Remove temporary file
     unlinkSync(tempFilePath);
