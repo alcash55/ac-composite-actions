@@ -61,7 +61,7 @@ async function getFileContent(path) {
  * @returns {object}
  */
 function spellCheck(path, fileContent) {
-  let spellError = {};
+  let spellError = [];
 
   try {
     // Temporarily write file content to a temporary file for cspell to read
@@ -79,7 +79,7 @@ function spellCheck(path, fileContent) {
       console.log("error: ", cspellOutput);
       console.log(`No errors in file: ${path}`);
     } else {
-      spellError = { file: path, output: cspellOutput };
+      spellError.push({ file: path, output: cspellOutput });
     }
 
     // Remove temporary file
