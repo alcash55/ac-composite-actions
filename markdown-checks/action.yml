@@ -1,16 +1,20 @@
 name: markdown-checks
 description: Markdown Checks consists of many different
+
 inputs:
   DIFF:
     description: List of space delimted files from pull request to be checked
     required: true
 
-- name: Run Spell Check
-  id: spellcheck
-  shell: bash
-  run: |
-    yarn global add cspell
-    echo CSPELL_ERRORS=$(cspell lint --no-exit-code --config  ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }}) >> $GITHUB_ENV
+runs:
+  using: composite
+  steps:
+    - name: Run Spell Check
+      id: spellcheck
+      shell: bash
+      run: |
+        yarn global add cspell
+        echo CSPELL_ERRORS=$(cspell lint --no-exit-code --config  ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }}) >> $GITHUB_ENV
 
 # - name: Install Dependencies & Run Checks
 #   shell: bash
