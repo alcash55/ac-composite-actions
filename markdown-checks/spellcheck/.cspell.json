@@ -10,7 +10,9 @@
         "vsmarketplacebadge",
         "visualstudio",
         "Voyix",
-        "NCR"
+        "NCR",
+        "Vite",
+        "vitejs"
     ],
 
     "files": ["**/*.md", "**/*.mdx"]
