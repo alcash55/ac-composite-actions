@@ -15,10 +15,10 @@ runs:
   steps:
     - name: LS
       run: |
-        cd ${{ github.action_path }}
-        echo ls
-        ls
+        ls -la
+        pwd
       shell: bash
+
     - name: Run Spell Check
       id: spellcheck
       shell: bash
