@@ -2,7 +2,7 @@ import { execSync } from "child_process";
 import { writeFileSync, unlinkSync } from "fs";
 import { Octokit } from "@octokit/rest";
 import * as core from "@actions/core";
-import cspellConfig from "./.cspell.json" assert { type: "json" };
+// import cspellConfig from "./.cspell.json" assert { type: "json" };
 
 /**
  * @type {string}
@@ -58,6 +58,24 @@ async function getFileContent(path) {
  */
 function spellCheck(path, fileContent) {
   let spellError = {};
+  const cspellConfig = {
+    version: "0.2",
+    language: "en",
+
+    words: [
+      "mkdirp",
+      "tsmerge",
+      "githubusercontent",
+      "streetsidesoftware",
+      "vsmarketplacebadge",
+      "visualstudio",
+      "Voyix",
+      "NCR",
+    ],
+
+    files: ["**/*.md", "**/*.mdx"],
+  };
+
   try {
     // Temporarily write file content to a temporary file for cspell to read
     const tempFilePath = "tempFile.txt";
