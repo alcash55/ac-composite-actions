@@ -14,11 +14,11 @@ outputs:
 runs:
   using: "composite"
   steps:
-    name: 🔨 Format Notification
-    shell: bash
-    if: format_msg
-    run: |
-      yarn
-      yarn format
-    env:
-      SPELL_MESSAGE: ${{ inputs.SPELL_MESSAGE }}
+    - name: 🔨 Format Notification
+      shell: bash
+      id: format_msg
+      run: |
+        yarn
+        yarn format
+      env:
+        SPELL_MESSAGE: ${{ inputs.SPELL_MESSAGE }}
