@@ -11,5 +11,9 @@
         "visualstudio",
         "Voyix",
         "NCR"
-    ]
+    ],
+
+    "files": ["**/*.md", "**/*.mdx"]
+
+
 }
