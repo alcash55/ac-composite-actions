@@ -35,6 +35,7 @@ runs:
         GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         BRANCH: ${{ inputs.BRANCH }}
+        CSPELL_CONFIG_PATH: ${{ github.action_path }}/.cspell.json
 
     - name: test
       shell: bash

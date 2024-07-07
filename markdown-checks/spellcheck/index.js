@@ -20,6 +20,10 @@ const org = process.env.GITHUB_ORG;
  * @type {string[]}
  */
 const [owner, repo] = org.split("/");
+/**
+ * @type {string}
+ */
+const cspellConfig = process.env.CSPELL_CONFIG_PATH;
 
 const octokit = new Octokit({
   auth: process.env.GH_TOKEN,
@@ -64,7 +68,7 @@ function spellCheck(path, fileContent) {
     const tempFilePath = "tempFile.txt";
     writeFileSync(tempFilePath, fileContent, "utf-8");
 
-    const spellCommand = `cspell lint --no-exit-code --config .cspell.json ${tempFilePath}`;
+    const spellCommand = `cspell lint --no-exit-code --config ${cspellConfig} ${tempFilePath}`;
 
     // Run cspell command synchronously
     const cspellOutput = execSync(spellCommand, {
