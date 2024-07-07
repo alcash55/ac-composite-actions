@@ -9,7 +9,7 @@ inputs:
 outputs:
   FORMATTED_MESSAGE:
     description: formatted message for desired communication channel
-    value: ${{ steps.format_msg.outputs.FORMATTED_MESSAGE}}
+    value: ${{ steps.format_msg.outputs.FORMATTED_MESSAGE }}
 
 runs:
   using: "composite"

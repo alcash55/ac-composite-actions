@@ -56,7 +56,7 @@ jobs:
           PR_NUMBER: ${{ inputs.PR_NUMBER }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           MESSAGE_TYPE: "github"
-          MESSAGE: ${{steps.create_msg.outputs.FORMATTED_MESSAGE}}
+          MESSAGE: ${{ steps.create_msg.outputs.FORMATTED_MESSAGE }}
 
       # - name: 🚨 Notify Step Errors
       #   id: step_errors
