@@ -103,7 +103,7 @@ try {
     const fileContent = await getFileContent(filePath);
     const spellError = spellCheck(filePath, fileContent);
 
-    if (!spellError) {
+    if (!spellError.length) {
       console.log(`No spell errors for ${filePath}`);
     } else {
       spellErrors.push(spellError);
