@@ -57,13 +57,14 @@ async function getFileContent(path) {
  * Run cspell and check spelling issues
  * @see https://github.com/streetsidesoftware/cspell-cli?tab=readme-ov-file#lint
  * @param {string} fileContent
+ * @param {string} path
  * @returns {string}
  */
-function spellCheck(fileContent) {
+function spellCheck(path, fileContent) {
   let spellError = "";
   try {
     // Temporarily write file content to a temporary file for cspell to read
-    const tempFilePath = "tempFile.txt";
+    const tempFilePath = path;
     writeFileSync(tempFilePath, fileContent, "utf-8");
 
     const spellCommand = `cspell lint --no-exit-code --config ${cspellConfig} ${tempFilePath}`;
@@ -94,7 +95,7 @@ try {
 
   for (const filePath of files) {
     const fileContent = await getFileContent(filePath);
-    const spellError = spellCheck(fileContent);
+    const spellError = spellCheck(filePath, fileContent);
 
     if (!spellError) {
       console.log(`No spell errors for ${filePath}`);
