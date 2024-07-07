@@ -15,6 +15,7 @@ runs:
   steps:
     - name: LS
       run: |
+        cd frontend/
         ls -la
         pwd
       shell: bash
