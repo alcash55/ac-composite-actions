@@ -15,6 +15,7 @@ runs:
   steps:
     - name: LS
       run: |
+        cd ${{ github.action_path }}
         echo ls
         ls
       shell: bash
