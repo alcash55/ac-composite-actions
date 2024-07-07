@@ -5,6 +5,10 @@ inputs:
   DIFF:
     description: List of space delimted files from pull request to be checked
     required: true
+outputs:
+  SPELL_ERRORS:
+    description:
+    value: ${{ steps.spellcheck.outputs.CSPELL_ERRORS }}
 
 runs:
   using: composite
@@ -14,4 +18,4 @@ runs:
       shell: bash
       run: |
         yarn global add cspell
-        echo CSPELL_ERRORS=$(cspell lint --no-exit-code --config  ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }}) >> $GITHUB_ENV
+        echo CSPELL_ERRORS=$(cspell lint --no-exit-code --config  ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }}) >> $GITHUB_OUTPUT
