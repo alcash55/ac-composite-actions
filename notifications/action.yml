@@ -30,7 +30,6 @@ runs:
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         PR_NUMBER: ${{ inputs.PR_NUMBER }}
         ORG: ${{ inputs.GITHUB_ORG }}
-        PR_NUMBER: ${{ inputs.PR_NUMBER }}
 
 
     - name: Send GitHub Pull Request Comment
@@ -40,6 +39,11 @@ runs:
       run: |
         yarn
         yarn sendGithubMessage
+      env:
+        GH_TOKEN: ${{ inputs.GH_TOKEN }}
+        PR_NUMBER: ${{ inputs.PR_NUMBER }}
+        ORG: ${{ inputs.GITHUB_ORG }}
+
 
      - name: Send Discord Message
       id: pr_msg
