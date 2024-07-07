@@ -2,9 +2,21 @@ name: Format Message
 description: Take message JSON and format them for the corresponding
 
 inputs:
-  MESSAGE:
-    description:
+  SPELL_MESSAGE:
+    description: Unformatted spell check message
     required: true
-  MESSAGE_TYPE:
-    description:
-    required: true
+
+outputs:
+  FORMATTED_MESSAGE:
+    description: formatted message for desired communication channel
+    value: ${{ steps.format_msg.outputs.FORMATTED_MESSAGE}}
+
+runs:
+  using: "composite"
+  steps:
+    name: 🔨 Format Notification
+    shell: bash
+    if: format_msg
+    run: |
+      yarn
+      yarn format
