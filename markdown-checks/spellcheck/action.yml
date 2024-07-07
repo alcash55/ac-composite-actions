@@ -1,0 +1,17 @@
+name: spell check
+description: using Cspell to check the spelling from the input DIFF files
+
+inputs:
+  DIFF:
+    description: List of space delimted files from pull request to be checked
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Run Spell Check
+      id: spellcheck
+      shell: bash
+      run: |
+        yarn global add cspell
+        echo CSPELL_ERRORS=$(cspell lint --no-exit-code --config  ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }}) >> $GITHUB_ENV

@@ -1,0 +1,10 @@
+name: Format Message
+description: Take message JSON and format them for the corresponding
+
+inputs:
+  MESSAGE:
+    description:
+    required: true
+  MESSAGE_TYPE:
+    description:
+    required: true

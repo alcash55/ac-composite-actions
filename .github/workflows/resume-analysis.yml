@@ -23,10 +23,6 @@ jobs:
   analysis:
     runs-on: ubuntu-latest
     steps:
-      # - name: Get Secrets if Needed
-      #   id: get_secrets
-      #   run: echo secretes
-
       - name: 🔍 Get Diff
         id: diff
         uses: alcash55/ac-composite-actions/diff@main
