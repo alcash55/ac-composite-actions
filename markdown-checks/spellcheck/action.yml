@@ -18,6 +18,8 @@ runs:
       shell: bash
       if: ${{ inputs.DIFF }} != ''
       run: |
+        echo test
+        ls
         yarn global add cspell
         CSPELL_ERRORS=$(cspell lint --no-exit-code --config  ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }})
         echo "CSPELL_ERRORS=$(CSPELL_ERRORS)" >> $GITHUB_OUTPUT
