@@ -12,6 +12,9 @@ const diff = process.env.DIFF;
  * @type {string}
  */
 const org = process.env.GITHUB_ORG;
+
+console.log(org);
+
 /**
  * @type {string[]}
  */
@@ -21,10 +24,14 @@ const octokit = new Octokit({
   auth: process.env.GH_TOKEN,
 });
 
-// Function to fetch file content using GitHub API
+/**
+ * Fetch file content using GitHub API
+ * @see https://octokit.github.io/rest.js/v20#repos-get-content
+ * @param {string} path
+ * @returns {Promise<string>}
+ */
 async function getFileContent(path) {
   try {
-    // Fetch file content using GitHub API
     const { data } = await octokit.repos.getContent({
       owner,
       repo,
@@ -40,7 +47,12 @@ async function getFileContent(path) {
   }
 }
 
-// Function to run cspell and check spelling issues
+/**
+ * Run cspell and check spelling issues
+ * @see https://github.com/streetsidesoftware/cspell-cli?tab=readme-ov-file#lint
+ * @param {string} fileContent
+ * @returns {string}
+ */
 function spellCheck(fileContent) {
   let spellError = "";
   try {
@@ -69,11 +81,14 @@ function spellCheck(fileContent) {
 
 try {
   const files = diff.split(" ");
+  /**
+   * @type {string[]}
+   */
   const spellErrors = [];
 
   for (const filePath of files) {
     const fileContent = await getFileContent(filePath);
-    const spellError = await spellCheck(fileContent);
+    const spellError = spellCheck(fileContent);
 
     if (!spellError) {
       console.log(`No spell errors for ${filePath}`);
