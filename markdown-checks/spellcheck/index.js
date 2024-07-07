@@ -81,7 +81,7 @@ function spellCheck(path, fileContent) {
     const tempFilePath = "tempFile.txt";
     writeFileSync(tempFilePath, fileContent, "utf-8");
 
-    const spellCommand = `cspell lint --no-exit-code --config ${cspellConfig} ${tempFilePath}`;
+    const spellCommand = `cspell lint --no-exit-code ${tempFilePath}`;
 
     // Run cspell command synchronously
     const cspellOutput = execSync(spellCommand, {
