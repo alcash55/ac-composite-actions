@@ -1,24 +1,27 @@
 {
-    "name": "diff",
-    "version": "1.0.0",
-    "description": "Get the Pull Reqeust Changed Files",
-    "main": "index.js",
-    "type": "module",
-    "scripts": {
-        "diff": "node index.js",
-        "test": "vitest"
-    },
-    "repository": {
-      "type": "git",
-      "url": "git+https://github.com/alcash55/ac-composite-actions.git"
-    },
-    "author": "alcash55",
-    "bugs": {
-      "url": "https://github.com/alcash55/ac-composite-actions/issues"
-    },
-    "homepage": "https://github.com/alcash55/ac-composite-actions#readme",
-    "dependencies": {
-      "@actions/core": "^1.10.1",
-      "@octokit/rest": "^21.0.0"
-    }
+  "name": "diff",
+  "version": "1.0.0",
+  "description": "Get the Pull Reqeust Changed Files",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "diff": "node index.js",
+    "test": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alcash55/ac-composite-actions.git"
+  },
+  "author": "alcash55",
+  "bugs": {
+    "url": "https://github.com/alcash55/ac-composite-actions/issues"
+  },
+  "homepage": "https://github.com/alcash55/ac-composite-actions#readme",
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@octokit/rest": "^21.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10"
   }
+}
