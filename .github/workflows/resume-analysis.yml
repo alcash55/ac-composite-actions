@@ -31,17 +31,24 @@ jobs:
           PR_NUMBER: ${{ inputs.PR_NUMBER }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      - name: 📝 Markdown Checks
-        id: md_checks
-        uses: alcash55/ac-composite-actions/markdown-checks@main
+      - name: 🔤 Spell Check
+        id: spell_check
+        uses: alcash55/ac-composite-actions/markdown-checks/spellcheck@main
         with:
           DIFF: ${{ steps.diff.outputs.DIFF }}
 
-      # - name: ➕ Create Message
-      #   id: create_msg
-      #   uses: alcash55/ac-composite-actions/format-message@main
+      # - name: 🖨️ ATS Check
+      #     id: ats_check
+      #     uses: alcash55/ac-composite-actions/ats-check@main
+      #     with:
 
-      # - name: 🔔 Notifications
+      - name: ➕ Format Message
+        id: create_msg
+        uses: alcash55/ac-composite-actions/format-message@main
+        with:
+          SPELL_MESSAGE: ${{ steps.spell_check.outputs.SPELL_ERRORS }}
+
+      # - name: 🔔 Send Notifications
       #   id: notify
       #   uses: alcash55/ac-composite-actions/notifications@main
       #   with:
@@ -49,3 +56,8 @@ jobs:
       #     PR_NUMBER: ${{ inputs.PR_NUMBER }}
       #     GH_TOKEN: ${{ secrets.GH_TOKEN }}
       #     MESSAGE_TYPE: "github"
+
+      # - name: 🚨 Notify Step Errors
+      #   id: step_errors
+      #   uses: alcash55/ac-composite-actions/notifications@main
+      #   with:
