@@ -1,25 +1,26 @@
 {
-    "name": "checks",
-    "version": "1.0.0",
-    "description": "Markdown Checks",
-    "main": "index.js",
-    "type": "module",
-    "scripts": {
-        "spell": "node ./spellcheck/index.js",
-        "customChecks": "",
-        "test": "vitest"
-    },
-    "repository": {
-      "type": "git",
-      "url": "git+https://github.com/alcash55/ac-composite-actions.git"
-    },
-    "author": "alcash55",
-    "bugs": {
-      "url": "https://github.com/alcash55/ac-composite-actions/issues"
-    },
-    "homepage": "https://github.com/alcash55/ac-composite-actions#readme",
-    "dependencies": {
-      "@actions/core": "^1.10.1",
-      "@octokit/rest": "^21.0.0"
-    }
+  "name": "checks",
+  "version": "1.0.0",
+  "description": "Markdown Checks",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "spell": "node ./spellcheck/index.js",
+    "customChecks": "",
+    "test": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alcash55/ac-composite-actions.git"
+  },
+  "author": "alcash55",
+  "bugs": {
+    "url": "https://github.com/alcash55/ac-composite-actions/issues"
+  },
+  "homepage": "https://github.com/alcash55/ac-composite-actions#readme",
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@octokit/rest": "^21.0.0",
+    "cspell": "^8.10.4"
   }
+}
