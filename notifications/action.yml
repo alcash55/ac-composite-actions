@@ -14,6 +14,9 @@ inputs:
   PR_NUMBER:
     description: The number that identifies the pull request
     required: false
+  GH_TOKEN:
+    description: Token for the use triggering the wf
+    required: false
 
 runs:
   using: "composite"
