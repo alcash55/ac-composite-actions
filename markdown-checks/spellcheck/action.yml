@@ -22,7 +22,7 @@ runs:
         yarn
         yarn spell
       env:
-        SPELL_MESSAGE: ${{ inputs.SPELL_MESSAGE }}
+        DIFF: ${{ inputs.DIFF }}
         GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
 # yarn add cspell
