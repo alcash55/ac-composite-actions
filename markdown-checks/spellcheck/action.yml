@@ -5,6 +5,15 @@ inputs:
   DIFF:
     description: List of space delimted files from pull request to be checked
     required: true
+  BRANCH:
+    description: name of the ref where the content should be spell checked
+    required: true
+  GITHUB_ORG:
+    description: <github owner/github repo>
+    required: true
+  GH_TOKEN:
+    description: token for the use triggering the wf
+    required: true
 outputs:
   SPELL_ERRORS:
     description:

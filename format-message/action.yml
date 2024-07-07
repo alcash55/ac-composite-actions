@@ -5,12 +5,6 @@ inputs:
   SPELL_MESSAGE:
     description: Unformatted spell check message
     required: true
-  GITHUB_ORG:
-    description: <github owner/github repo>
-    required: true
-  GH_TOKEN:
-    description: token for the use triggering the wf
-    required: true
 
 outputs:
   FORMATTED_MESSAGE:
