@@ -11,10 +11,11 @@ const diff = process.env.DIFF;
 /**
  * @type {string}
  */
+const branch = process.env.BRANCH;
+/**
+ * @type {string}
+ */
 const org = process.env.GITHUB_ORG;
-
-console.log(org);
-
 /**
  * @type {string[]}
  */
@@ -33,9 +34,10 @@ const octokit = new Octokit({
 async function getFileContent(path) {
   try {
     const { data } = await octokit.repos.getContent({
-      owner,
-      repo,
+      owner: owner,
+      repo: repo,
       path: path,
+      ref: branch,
     });
 
     // Decode content from base64
