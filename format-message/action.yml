@@ -29,5 +29,3 @@ runs:
         yarn format
       env:
         SPELL_MESSAGE: ${{ inputs.SPELL_MESSAGE }}
-        GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
-        GH_TOKEN: ${{ inputs.GH_TOKEN }}

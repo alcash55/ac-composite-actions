@@ -21,7 +21,10 @@ runs:
         cd ${{ github.action_path }}
         yarn
         yarn spell
-
+      env:
+        SPELL_MESSAGE: ${{ inputs.SPELL_MESSAGE }}
+        GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
+        GH_TOKEN: ${{ inputs.GH_TOKEN }}
 # yarn add cspell
 # CSPELL_ERRORS=$(cspell lint --no-exit-code --config ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }})
 # echo "CSPELL_ERRORS=$(CSPELL_ERRORS)" >> $GITHUB_OUTPUT
