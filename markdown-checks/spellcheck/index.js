@@ -25,6 +25,9 @@ const octokit = new Octokit({
   auth: process.env.GH_TOKEN,
 });
 
+console.log("branch: ", branch);
+console.log("org: ", org);
+
 /**
  * Fetch file content using GitHub API
  * @see https://octokit.github.io/rest.js/v20#repos-get-content
@@ -32,6 +35,7 @@ const octokit = new Octokit({
  * @returns {Promise<string>}
  */
 async function getFileContent(path) {
+  console.log("path: ", path);
   try {
     const { data } = await octokit.repos.getContent({
       owner: owner,
