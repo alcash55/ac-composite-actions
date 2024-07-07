@@ -14,6 +14,7 @@ runs:
   using: composite
   steps:
     - run: echo ${{ inputs.DIFF }}
+      shell: bash
 
     - name: Run Spell Check
       id: spellcheck
