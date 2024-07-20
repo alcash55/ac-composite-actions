@@ -51,7 +51,7 @@ jobs:
         with:
           SPELL_MESSAGE: ${{ steps.spell_check.outputs.SPELL_ERRORS }}
 
-      - name: 🔔 Send Notifications
+      - name: 🔔 Send Pull Request Comment
         id: notify
         uses: alcash55/ac-composite-actions/notifications@main
         with:
