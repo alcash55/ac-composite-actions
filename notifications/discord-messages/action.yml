@@ -1,0 +1,32 @@
+name: "Discord Message"
+description: "Send a message to a Discord channel"
+inputs:
+  webhook_url:
+    description: "Discord Webhook URL"
+    required: true
+  message:
+    description: "Message to send"
+    required: true
+  color:
+    description: "Message color"
+    required: false
+    default: "0"
+  username:
+    description: "Username"
+    required: false
+    default: "GitHub Actions"
+  avatar_url:
+    description: "Avatar URL"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Send a basic message
+      uses: MineBartekSA/discord-webhook@v2
+      with:
+        webhook: ${{ secrets.WEBHOOK_URL }}
+        content: ${{ inputs.message }}
+        color: ${{ inputs.color }}
+        username: ${{ inputs.username }}
+        avatar_url: ${{ inputs.avatar_url }}
