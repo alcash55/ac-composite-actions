@@ -1,0 +1,31 @@
+name: Portfolio Message
+on:
+  workflow_call:
+    inputs:
+      message:
+        required: true
+        type: string
+      color:
+        required: false
+        type: string
+        default: "0"
+      username:
+        required: false
+        type: string
+        default: "GitHub Actions"
+      avatar_url:
+        required: false
+        type: string
+
+jobs:
+  send-message:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📩 Send Discord Message
+        uses: alcash55/ac-composite-actions/notifications/discord-messages@main
+        with:
+          webhook_url: ${{ secrets.WEBHOOK_URL }}
+          message: ${{ inputs.message }}
+          color: ${{ inputs.color }}
+          username: ${{ inputs.username }}
+          avatar_url: ${{ inputs.avatar_url }}
