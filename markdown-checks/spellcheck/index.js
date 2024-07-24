@@ -1,21 +1,20 @@
 import { execSync } from "child_process";
-import { writeFileSync, unlinkSync } from "fs";
+import { writeFileSync, readFileSync, unlinkSync } from "fs";
 import { Octokit } from "@octokit/rest";
 import * as core from "@actions/core";
-// import cspellConfig from "./.cspell.json" assert { type: "json" };
 
 /**
  * @type {string}
  */
-const diff = process.env.DIFF;
+const diff = process.env.DIFF ?? "frontend/src/content/education.mdx";
 /**
  * @type {string}
  */
-const branch = process.env.BRANCH;
+const branch = process.env.BRANCH ?? "testAnalysis";
 /**
  * @type {string}
  */
-const org = process.env.GITHUB_ORG;
+const org = process.env.GITHUB_ORG ?? "alcash55/Resume";
 /**
  * @type {string[]}
  */
@@ -23,7 +22,7 @@ const [owner, repo] = org.split("/");
 /**
  * @type {string}
  */
-const cspellConfig = process.env.CSPELL_CONFIG_PATH;
+const cspellConfig = process.env.CSPELL_CONFIG_PATH ?? ".cspell.json";
 
 const octokit = new Octokit({
   auth: process.env.GH_TOKEN,
@@ -65,10 +64,15 @@ function spellCheck(path, fileContent) {
 
   try {
     // Temporarily write file content to a temporary file for cspell to read
-    const tempFilePath = "tempFile.mdx";
+    const tempFilePath = "tempFile.md";
     writeFileSync(tempFilePath, fileContent, "utf-8");
 
-    const spellCommand = `cspell lint --no-exit-code --config ${cspellConfig} ${tempFilePath}`;
+    const file = readFileSync(tempFilePath, "utf-8");
+    console.log(file);
+
+    // const spellCommand = `cspell lint --no-exit-code --config ${cspellConfig} ${tempFilePath}`;
+
+    const spellCommand = `cspell lint --no-exit-code ${tempFilePath}`;
 
     // Run cspell command synchronously
     const cspellOutput = execSync(spellCommand, {
@@ -83,7 +87,7 @@ function spellCheck(path, fileContent) {
     }
 
     // Remove temporary file
-    unlinkSync(tempFilePath);
+    // unlinkSync(tempFilePath);
   } catch (error) {
     console.error("Error running cspell:", error);
     throw error;
