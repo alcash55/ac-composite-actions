@@ -1,15 +1,15 @@
-name: Portfolio Message
+name: Send Discord Message Via Webhook
 on:
   workflow_call:
     inputs:
-      message:
+      MESSAGE:
         required: true
         type: string
       color:
         required: false
         type: string
         default: "0"
-      username:
+      BOT_NAME:
         required: false
         type: string
         default: "GitHub Actions"
@@ -24,8 +24,7 @@ jobs:
       - name: 📩 Send Discord Message
         uses: alcash55/ac-composite-actions/notifications/discord-messages@main
         with:
-          webhook_url: ${{ secrets.WEBHOOK_URL }}
-          message: ${{ inputs.message }}
-          color: ${{ inputs.color }}
-          username: ${{ inputs.username }}
-          avatar_url: ${{ inputs.avatar_url }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          MESSAGE: ${{ inputs.MESSAGE }}
+          BOT_NAME: ${{ inputs.BOT_NAME }}
+          AVATAR_URL: ${{ inputs.AVATAR_URL }}

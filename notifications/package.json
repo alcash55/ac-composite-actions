@@ -5,10 +5,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "sendGithubMessage": "",
-    "deleteGithubMessage": "",
-    "discordMessage": "",
-    "test": "test"
+    "sendGithubMessage": "bun ",
+    "deleteGithubMessage": "bun",
+    "discordMessage": "bun index.js ",
+    "test": "bun test"
   },
   "repository": {
     "type": "git",
@@ -22,5 +22,8 @@
   "dependencies": {
     "@actions/core": "^1.10.1",
     "@octokit/rest": "^21.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.6"
   }
 }
