@@ -8,6 +8,8 @@
 
 ### notifications
 
-#### delete comment
+#### delete github comment
 
-#### send comment
+#### send github comment
+
+#### send discord webhook message
