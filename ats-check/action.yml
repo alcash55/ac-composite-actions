@@ -1,15 +1,40 @@
 # https://blog.apilayer.com/everything-you-need-to-know-for-the-resume-parser-api/
 name: ATS Check
-description: Use resume as PDF and see if compliant
+description: Parse a resume PDF and score its ATS compatibility
+
 inputs:
   RESUME:
-    description:
-    required:
+    description: Path to the resume PDF file (relative to the repo root)
+    required: true
+  RESUME_PARSER_API_KEY:
+    description: API key for the APILayer Resume Parser API
+    required: true
+  secrets:
+    APILAYER_API_KEY:
+      description: API key for the APILayer Resume Parser API
+      required: true
+
+outputs:
+  ATS_SCORE:
+    description: Overall ATS compatibility score (0-100) — 70 or above is considered passing
+    value: ${{ steps.ats_check.outputs.ATS_SCORE }}
+  ATS_REPORT:
+    description: Detailed ATS compatibility report as a markdown string
+    value: ${{ steps.ats_check.outputs.ATS_REPORT }}
+  ATS_PASSED:
+    description: Boolean — true if the score is 70 or above
+    value: ${{ steps.ats_check.outputs.ATS_PASSED }}
 
 runs:
   using: "composite"
   steps:
-    name: ATS Check
-    id: ats_check
-    shell: bash
-    run: echo ATS Check
+    - name: ATS Check
+      id: ats_check
+      shell: bash
+      run: |
+        cd ${{ github.action_path }}
+        yarn
+        yarn ats-check
+      env:
+        RESUME: ${{ github.workspace }}/${{ inputs.RESUME }}
+        RESUME_PARSER_API_KEY: ${{ github.secrets.APILAYER_API_KEY }}

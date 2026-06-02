@@ -5,10 +5,9 @@ on:
       MESSAGE:
         required: true
         type: string
-      color:
-        required: false
+      WEBHOOK_URL:
+        required: true
         type: string
-        default: "0"
       BOT_NAME:
         required: false
         type: string
