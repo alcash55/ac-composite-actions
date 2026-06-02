@@ -1,7 +1,6 @@
 import * as core from "@actions/core";
 import * as fs from "fs";
 import * as path from "path";
-import FormData from "form-data";
 import fetch from "node-fetch";
 
 const RESUME_PATH = process.env.RESUME;
@@ -28,21 +27,16 @@ async function parseResume() {
   }
 
   const fileBuffer = fs.readFileSync(RESUME_PATH);
-  const form = new FormData();
-  form.append("file", fileBuffer, {
-    filename: path.basename(RESUME_PATH),
-    contentType: "application/octet-stream",
-  });
 
   core.info(`Uploading resume: ${path.basename(RESUME_PATH)}`);
 
   const response = await fetch(API_URL, {
     method: "POST",
-    headers: /** @type {Record<string, string>} */ ({
+    headers: {
       apikey: API_KEY,
-      ...form.getHeaders(),
-    }),
-    body: form,
+      "Content-Type": "application/octet-stream",
+    },
+    body: fileBuffer,
   });
 
   if (!response.ok) {
