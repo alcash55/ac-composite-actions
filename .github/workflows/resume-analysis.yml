@@ -2,6 +2,10 @@ name: Resume Analysis
 on:
   workflow_call:
     inputs:
+      RESUME:
+        description: "Path to the resume PDF file (relative to the repo root)"
+        required: true
+        type: string
       ORG:
         description: "GitHub owner and repository name (e.g., 'username/repository')"
         required: true
@@ -41,11 +45,11 @@ jobs:
           BRANCH: ${{ inputs.BRANCH }}
 
       - name: 🖨️ ATS Check
-          id: ats_check
-          uses: alcash55/ac-composite-actions/ats-check@main
-          with:
-            RESUME: ${{ inputs.RESUME }}
-            
+        id: ats_check
+        uses: alcash55/ac-composite-actions/ats-check@main
+        with:
+          RESUME: ${{ inputs.RESUME }}
+
       - name: ✍🏽 Format Message
         id: create_msg
         uses: alcash55/ac-composite-actions/format-message@main
