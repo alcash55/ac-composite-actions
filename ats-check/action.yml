@@ -24,11 +24,23 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Debug env
+      shell: bash
+      run: |
+        echo "RESUME_PARSER_API_KEY is set: ${{ inputs.APILAYER_API_KEY != '' }}"
+        echo "RESUME input: ${{ inputs.RESUME }}"
+
     - name: ATS Check
       id: ats_check
       shell: bash
       run: |
         cd ${{ github.action_path }}
+        if [ -z "$RESUME_PARSER_API_KEY" ]; then
+          echo "ERROR: RESUME_PARSER_API_KEY env var is empty."
+          echo "Input length: ${#RESUME_PARSER_API_KEY}"
+          echo "Raw input value repr: '$(echo -n "$RESUME_PARSER_API_KEY" | xxd | head -1)'"
+          exit 1
+        fi
         yarn
         yarn ats-check
       env:
