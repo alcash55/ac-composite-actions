@@ -24,7 +24,7 @@ runs:
     - name: Delete Old GitHub Pull Request Comment (if exists)
       id: delete_pr_msg
       shell: bash
-      if: ${{ inputs.MESSAGE_TYPE }} == 'github'
+      if: ${{ inputs.MESSAGE_TYPE == 'github' }}
       run: |
         cd ${{ github.action_path }}
         yarn
@@ -37,7 +37,7 @@ runs:
     - name: Send GitHub Pull Request Comment
       id: send_pr_msg
       shell: bash
-      if: ${{ inputs.MESSAGE_TYPE }} == 'github'
+      if: ${{ inputs.MESSAGE_TYPE == 'github' }}
       run: |
         cd ${{ github.action_path }}
         yarn
@@ -50,7 +50,7 @@ runs:
     - name: Send Discord Message
       id: send_discord_msg
       shell: bash
-      if: ${{ inputs.MESSAGE_TYPE }} == 'discord'
+      if: ${{ inputs.MESSAGE_TYPE == 'discord' }}
       run: |
         cd ${{ github.action_path }}
         yarn
