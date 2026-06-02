@@ -31,7 +31,7 @@ async function parseResume() {
   const form = new FormData();
   form.append("file", fileBuffer, {
     filename: path.basename(RESUME_PATH),
-    contentType: "application/pdf",
+    contentType: "application/octet-stream",
   });
 
   core.info(`Uploading resume: ${path.basename(RESUME_PATH)}`);
