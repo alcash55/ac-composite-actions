@@ -33,4 +33,4 @@ runs:
         yarn ats-check
       env:
         RESUME: ${{ github.workspace }}/${{ inputs.RESUME }}
-        RESUME_PARSER_API_KEY: ${{ github.secrets.APILAYER_API_KEY }}
+        RESUME_PARSER_API_KEY: ${{ secrets.APILAYER_API_KEY }}
