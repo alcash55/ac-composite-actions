@@ -9,10 +9,6 @@ inputs:
   RESUME_PARSER_API_KEY:
     description: API key for the APILayer Resume Parser API
     required: true
-  secrets:
-    APILAYER_API_KEY:
-      description: API key for the APILayer Resume Parser API
-      required: true
 
 outputs:
   ATS_SCORE:

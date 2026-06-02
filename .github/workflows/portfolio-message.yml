@@ -8,10 +8,6 @@ on:
       WEBHOOK_URL:
         required: true
         type: string
-      BOT_NAME:
-        required: false
-        type: string
-        default: "GitHub Actions"
       avatar_url:
         required: false
         type: string
@@ -25,5 +21,4 @@ jobs:
         with:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
           MESSAGE: ${{ inputs.MESSAGE }}
-          BOT_NAME: ${{ inputs.BOT_NAME }}
           AVATAR_URL: ${{ inputs.AVATAR_URL }}
