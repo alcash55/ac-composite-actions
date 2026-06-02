@@ -24,9 +24,6 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
-
     - name: ATS Check
       id: ats_check
       shell: bash

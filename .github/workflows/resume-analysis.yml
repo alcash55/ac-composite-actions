@@ -22,7 +22,9 @@ on:
       GH_TOKEN:
         description: "The token that identifies the actor who triggered the workflow"
         required: true
-
+      APILAYER_API_KEY:
+        description: API key for the APILayer Resume Parser
+        required: true
 jobs:
   analysis:
     runs-on: ubuntu-latest
@@ -49,6 +51,7 @@ jobs:
         uses: alcash55/ac-composite-actions/ats-check@main
         with:
           RESUME: ${{ inputs.RESUME }}
+          APILAYER_API_KEY: ${{ secrets.APILAYER_API_KEY }}
 
       - name: ✍🏽 Format Message
         id: create_msg
