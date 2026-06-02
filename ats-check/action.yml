@@ -6,9 +6,6 @@ inputs:
   RESUME:
     description: Path to the resume PDF file (relative to the repo root)
     required: true
-  RESUME_PARSER_API_KEY:
-    description: API key for the APILayer Resume Parser API
-    required: true
 
 outputs:
   ATS_SCORE:

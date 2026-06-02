@@ -45,7 +45,6 @@ jobs:
           uses: alcash55/ac-composite-actions/ats-check@main
           with:
             RESUME: ${{ inputs.RESUME }}
-            RESUME_PARSER_API_KEY: ${{ secrets.RESUME_PARSER_API_KEY }}
             
       - name: ✍🏽 Format Message
         id: create_msg
