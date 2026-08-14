@@ -1,6 +1,7 @@
 name: diff
 description: |
-  Get changed files for resume analysis
+  List the files changed in a pull request, split into files that can be processed
+  and files whose names are rejected.
   https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#list-pull-requests-files
 
 inputs:
@@ -8,27 +9,42 @@ inputs:
     description: The number that identifies the pull request
     required: true
   GITHUB_ORG:
-    description: <github owner/github repo>
+    description: <github owner>/<github repo>
     required: true
   GH_TOKEN:
-    description: token for the use triggering the wf
+    description: Token for the actor triggering the workflow
     required: true
+  FILE_EXTENSIONS:
+    description: Comma delimited list of file extensions to keep in DIFF
+    required: false
+    default: "md,mdx"
+
 outputs:
   DIFF:
-    description: Space delimited list of changed md files
-    value: ${{steps.get_diff.outputs.DIFF}}
+    description: Space delimited list of changed files matching FILE_EXTENSIONS
+    value: ${{ steps.get_diff.outputs.DIFF }}
+  ALL_FILES:
+    description: Space delimited list of every added/modified/renamed file in the pull request
+    value: ${{ steps.get_diff.outputs.ALL_FILES }}
+  ERROR_FILES:
+    description: Markdown report of files rejected for invalid names, empty when there are none
+    value: ${{ steps.get_diff.outputs.ERROR_FILES }}
+  HAS_CHANGES:
+    description: "'true' when DIFF is non-empty, otherwise 'false'"
+    value: ${{ steps.get_diff.outputs.HAS_CHANGES }}
 
 runs:
   using: "composite"
   steps:
-    - name: Get Diff
+    - name: 🔍 Get Diff
       id: get_diff
       shell: bash
       run: |
-        cd ${{ github.action_path }}
-        yarn
+        cd "${{ github.action_path }}"
+        yarn install --frozen-lockfile --production --non-interactive
         yarn diff
       env:
         PR_NUMBER: ${{ inputs.PR_NUMBER }}
         GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
+        FILE_EXTENSIONS: ${{ inputs.FILE_EXTENSIONS }}
