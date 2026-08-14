@@ -1,0 +1,12 @@
+# Actions in this repo run on Linux runners. CRLF inside a composite action's
+# `run:` block leaves stray \r on every command, so everything is stored as LF.
+* text=auto eol=lf
+
+# Left alone so pushes do not need the OAuth `workflow` scope for what would
+# only ever be a line-ending change.
+.github/workflows/*.yml -text
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.lockb binary
