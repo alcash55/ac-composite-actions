@@ -1,0 +1,61 @@
+name: CI
+
+# Runs every action directory's own test suite on every PR. Nothing here should ever
+# call GitHub Actions locally or hit real APIs — each directory's tests are expected
+# to mock what they need (see diff/index.test.js as the standard to match).
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test / ${{ matrix.dir }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # One entry per action directory that has a runnable `test` script.
+        # To add a directory once it has one: add one line here. Nothing else in
+        # this workflow needs to change — install/test steps below are generic.
+        # `pm` is whichever package manager that directory's scripts use (yarn or bun).
+        #
+        # Directories intentionally NOT listed yet (no runnable test script as of
+        # this workflow's creation — confirmed by running `<pm> test` locally):
+        #   - ats-check                    (test script references vitest, which
+        #                                    isn't installed; not our call to add,
+        #                                    the directory is off-limits this sprint)
+        #   - format-message               (test script is the npm-init placeholder
+        #                                    "test", always exits 1)
+        #   - notifications                (bun test finds zero test files)
+        #   - markdown-checks/spellcheck   (vitest configured, zero test files)
+        # Add each above the line once its owning change lands with real tests.
+        include:
+          - { dir: diff, pm: yarn }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        if: matrix.pm == 'yarn'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+          cache-dependency-path: ${{ matrix.dir }}/yarn.lock
+
+      - name: Setup Bun
+        if: matrix.pm == 'bun'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.1.34"
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.dir }}
+        run: ${{ matrix.pm == 'yarn' && 'yarn install --frozen-lockfile' || 'bun install --frozen-lockfile' }}
+
+      - name: Run tests
+        working-directory: ${{ matrix.dir }}
+        run: ${{ matrix.pm == 'yarn' && 'yarn test' || 'bun test' }}

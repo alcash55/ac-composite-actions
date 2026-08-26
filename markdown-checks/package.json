@@ -7,7 +7,6 @@
   "scripts": {
     "spell": "node ./spellcheck/index.js",
     "cspell": "cspell lint --no-exit-code tempFile.md",
-    "customChecks": "",
     "test": "vitest"
   },
   "repository": {

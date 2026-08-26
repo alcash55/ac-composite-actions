@@ -280,7 +280,98 @@ Placeholder — the job only echoes a string.
 
 ---
 
+## Versioning & releases
+
+**Not yet in effect** — this section documents the process; no tags exist in this repo as of this
+writing. Everything is still consumed at `@main` (see the note at the top of this file). This is
+prepared so that turning it on later is a documentation lookup, not a design discussion.
+
+### Why this matters
+
+Every consumer references `@main`. A bad push to any action here breaks every consumer immediately,
+with no way for a consumer to pin to a known-good state and upgrade on its own schedule. Tags fix
+that, but only once they exist and consumers actually move to them — creating a tag today changes
+nothing for existing callers until they update their `uses:` lines.
+
+### Scheme
+
+Standard [SemVer](https://semver.org) tags (`vX.Y.Z`), plus a moving major-version tag (`v1`) that
+consumers pin to instead of a full version — the same convention as `actions/checkout@v4`.
+
+- **Major (`vX`)** — any breaking change: a renamed or removed input/output, an input that becomes
+  `required` where it wasn't, a change to an existing output's meaning or format that a consumer
+  could be parsing. `agents.md` already commits this repo to additive changes for exactly this
+  reason — a major bump should be rare.
+- **Minor (`vX.Y`)** — new action, new optional input/output, backward-compatible behavior change.
+- **Patch (`vX.Y.Z`)** — bug fixes with no interface change (e.g. this sprint's `SPELL_ERRORS` /
+  `CSPELL_ERRORS` output-name fix would have been a patch, had tags existed).
+
+### Maintaining the moving `v1` pointer
+
+`v1` is a branch-like tag: it always points at the latest `v1.Y.Z` commit. Cut a normal annotated
+tag for the release, then force-move `v1` to it:
+
+```bash
+git tag -a v1.2.0 -m "Release v1.2.0"
+git push origin v1.2.0
+
+git tag -f v1 v1.2.0
+git push origin v1 --force
+```
+
+The `--force` push only ever moves `v1` to a commit that already has its own immutable `vX.Y.Z`
+tag — consumers who pinned to `v1.2.0` directly are never affected by a later `v1` move.
+
+### Migrating consumers from `@main` to `@v1`
+
+Once the first `v1` tag exists, each consumer changes its `uses:` lines from:
+
+```yaml
+uses: alcash55/ac-composite-actions/diff@main
+```
+
+to:
+
+```yaml
+uses: alcash55/ac-composite-actions/diff@v1
+```
+
+No other changes needed for a same-major upgrade. A future breaking change ships as `v2`, and
+consumers migrate to it on their own schedule by bumping that one tag reference — `@main` keeps
+tracking the latest commit for anyone who hasn't moved yet, but the intent is for everyone to move
+off it.
+
+### Proposed starting version
+
+**`v1.0.0`**, cut from `main` once the `backend` half of this sprint's chain-repair work
+(`markdown-checks/spellcheck`, `format-message`, `notifications`) is merged — that is the first
+point at which `resume-analysis.yml` actually runs end to end and produces a real PR comment,
+which is a reasonable definition of "the public interface works as documented." Tagging now, while
+that chain is still broken, would tag a known-broken state as `v1.0.0`.
+
+Exact commands, to be run from `main` after that merge (**not run as part of this sprint** — see
+below):
+
+```bash
+git checkout main && git pull
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+git tag v1 v1.0.0
+git push origin v1
+```
+
+**These commands have not been run.** Tagging is a public interface promise to every consuming
+repo and is Alex's call to make, not something to do as part of routine devops work.
+
 ## Contributing
 
 See [`agents.md`](./agents.md) for the composite action template, the rules that apply to every
 action here, and the checklist for adding a new one.
+
+### CI
+
+`.github/workflows/ci.yml` runs on every pull request and installs + tests each action directory
+listed in its matrix. A directory is added to the matrix once it has a real, passing `test` script
+(`yarn test` or `bun test`) — that's a one-line addition to the matrix `include:` list, nothing
+else in the workflow changes. Directories without a runnable test script yet are deliberately left
+out rather than wired in to fail (see the comments in `ci.yml` for which ones and why).
