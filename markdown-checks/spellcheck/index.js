@@ -84,6 +84,11 @@ export function readConfig(env = process.env) {
   }
 
   // No DIFF: glob the whole checkout instead of a PR's changed files.
+  // Note the one behavioural divergence from the pre-rendered-mode version: a DIFF of
+  // only whitespace used to mean "run over zero files", a no-op, and now falls through
+  // to the whole-checkout glob. No caller can hit it - `diff` emits "" rather than " "
+  // for an empty file list - but a caller that built DIFF by hand would get a full
+  // scan where it used to get nothing.
   const extensions = (env.EXTENSIONS || DEFAULT_EXTENSIONS.join(","))
     .split(",")
     .map((ext) => ext.trim().replace(/^\./, ""))
