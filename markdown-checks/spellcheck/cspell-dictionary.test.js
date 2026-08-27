@@ -76,6 +76,19 @@ describe('.cspell.json dictionary (real cspell binary)', () => {
       // than replaces.
       const stillHasSharedWords = spellCheckFile('docs/stack.md', 'We used Vite and vitejs.', configPath);
       expect(stillHasSharedWords).toBeNull();
+
+      // The negative control, and the reason it is not optional: every other
+      // assertion in this block expects null, and a config cspell fails to
+      // apply at all *also* produces null — it reports "0 files checked" and
+      // exits clean rather than erroring. Without a case that expects a real
+      // failure, this test would pass identically whether the merge works or
+      // whether the merged config silently matches nothing, which is exactly
+      // the fault the temp-file-under-cwd comment in index.js describes. A
+      // genuine misspelling still being flagged is what separates "the
+      // dictionary was applied" from "nothing was checked".
+      const realTypo = spellCheckFile('docs/typo.md', 'This wrod is still wrong.', configPath);
+      expect(realTypo, 'merged config checked nothing at all').not.toBeNull();
+      expect(realTypo.output).toMatch(/wrod/);
     } finally {
       cleanup();
     }
