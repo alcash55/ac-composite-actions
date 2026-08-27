@@ -206,29 +206,34 @@ export function buildMarkdownReport(score, breakdown, issues, passed) {
 }
 
 // --- Main ---
-try {
-  const data = await parseResume();
+// Only self-execute as the action entrypoint; importing this module for tests
+// must not fire a live network request against the resume parser API. Same
+// guard as markdown-checks/spellcheck/index.js.
+if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
+  try {
+    const data = await parseResume();
 
-  core.info("Resume parsed successfully. Scoring ATS compatibility...");
+    core.info("Resume parsed successfully. Scoring ATS compatibility...");
 
-  const { score, breakdown, issues } = scoreResume(data);
-  const passed = score >= PASSING_SCORE;
-  const report = buildMarkdownReport(score, breakdown, issues, passed);
+    const { score, breakdown, issues } = scoreResume(data);
+    const passed = score >= PASSING_SCORE;
+    const report = buildMarkdownReport(score, breakdown, issues, passed);
 
-  core.info(`\n${report}`);
+    core.info(`\n${report}`);
 
-  core.setOutput("ATS_SCORE", String(score));
-  core.setOutput("ATS_REPORT", report);
-  core.setOutput("ATS_PASSED", String(passed));
+    core.setOutput("ATS_SCORE", String(score));
+    core.setOutput("ATS_REPORT", report);
+    core.setOutput("ATS_PASSED", String(passed));
 
-  if (!passed) {
-    core.warning(
-      `ATS score ${score}/100 is below the passing threshold of ${PASSING_SCORE}.`,
-    );
-  } else {
-    core.notice(`ATS score ${score}/100 — passed!`);
+    if (!passed) {
+      core.warning(
+        `ATS score ${score}/100 is below the passing threshold of ${PASSING_SCORE}.`,
+      );
+    } else {
+      core.notice(`ATS score ${score}/100 — passed!`);
+    }
+  } catch (e) {
+    core.setFailed(`ATS Check action failed: ${e}`);
+    console.error("Error:", e);
   }
-} catch (e) {
-  core.setFailed(`ATS Check action failed: ${e}`);
-  console.error("Error:", e);
 }
