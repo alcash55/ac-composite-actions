@@ -20,17 +20,12 @@ jobs:
         # To add a directory once it has one: add one line here. Nothing else in
         # this workflow needs to change — install/test steps below are generic.
         # `pm` is whichever package manager that directory's scripts use (yarn or bun).
-        #
-        # Directories intentionally NOT listed:
-        #   - ats-check   Its `test` script invokes vitest, which is not a declared
-        #                 dependency there, so it exits 127 the moment anyone runs
-        #                 it. Listing it would fail every PR. Tracked as follow-up
-        #                 work; the action itself is in production and unaffected.
         include:
           - { dir: diff, pm: yarn }
           - { dir: markdown-checks/spellcheck, pm: yarn }
           - { dir: format-message, pm: yarn }
           - { dir: notifications, pm: bun }
+          - { dir: ats-check, pm: yarn }
 
     steps:
       - name: Checkout
