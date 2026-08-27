@@ -1,7 +1,7 @@
 {
   "name": "spellcheck",
   "version": "1.0.0",
-  "description": "Spellcheck changed markdown files with cspell",
+  "description": "Spellcheck the checkout or a rendered site with cspell",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -21,7 +21,8 @@
   "dependencies": {
     "@actions/core": "^1.10.1",
     "@octokit/rest": "^21.0.0",
-    "cspell": "^8.10.4"
+    "cspell": "^8.10.4",
+    "playwright": "^1.47.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",

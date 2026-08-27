@@ -16,14 +16,34 @@ vi.mock('child_process', () => ({
   execSync: vi.fn(),
 }));
 
+// Only exercised by extractRenderedEntries — every other test in this file
+// never touches a browser, so the mock just has to exist, not do anything
+// useful by default.
+const mockPage = {
+  goto: vi.fn(),
+  evaluate: vi.fn(),
+};
+const mockBrowser = {
+  newPage: vi.fn(() => mockPage),
+  close: vi.fn(),
+};
+vi.mock('playwright', () => ({
+  chromium: { launch: vi.fn(() => mockBrowser) },
+}));
+
 import { execSync } from 'child_process';
 import * as core from '@actions/core';
 import {
   readConfig,
   readFileFromDisk,
   getFileContent,
+  listCheckoutFiles,
+  resolveCspellConfigPath,
   runCspell,
   spellCheckFile,
+  buildRenderedText,
+  loadRenderedEntries,
+  extractRenderedEntries,
   setOutputs,
   run,
 } from './index.js';
@@ -37,6 +57,12 @@ const VALID_ENV = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // clearAllMocks resets call history but not an explicit mockResolvedValue/
+  // mockRejectedValue set by a previous test (e.g. the "closes the browser
+  // even when scraping throws" case below) — reset the playwright mock page
+  // to a benign default each time so that override cannot leak forward.
+  mockPage.goto.mockResolvedValue(undefined);
+  mockPage.evaluate.mockResolvedValue({ innerText: '', description: '', labels: [] });
 });
 
 // --- Required: the output-name contract that the CSPELL_ERRORS/SPELL_ERRORS
@@ -69,8 +95,10 @@ describe('action.yml <-> index.js output contract', () => {
 });
 
 describe('readConfig', () => {
-  it('parses a valid environment', () => {
+  it('parses a valid environment (source mode with DIFF, unchanged from before modes existed)', () => {
     expect(readConfig(VALID_ENV)).toEqual({
+      mode: 'source',
+      dictionaryPath: null,
       files: ['docs/a.md', 'docs/b.md'],
       branch: 'main',
       owner: 'alcash55',
@@ -80,7 +108,7 @@ describe('readConfig', () => {
     });
   });
 
-  it.each(['DIFF', 'BRANCH', 'GITHUB_ORG', 'GH_TOKEN'])(
+  it.each(['BRANCH', 'GITHUB_ORG', 'GH_TOKEN'])(
     'throws when %s is missing rather than falling back to a hardcoded default',
     (key) => {
       const env = { ...VALID_ENV };
@@ -98,6 +126,84 @@ describe('readConfig', () => {
     const config = readConfig({ ...VALID_ENV, CSPELL_CONFIG_PATH: '/x/.cspell.json' });
 
     expect(config.cspellConfigPath).toBe('/x/.cspell.json');
+  });
+
+  it('honours a custom DICTIONARY', () => {
+    const config = readConfig({ ...VALID_ENV, DICTIONARY: 'e2e/.cspell.json' });
+
+    expect(config.dictionaryPath).toBe('e2e/.cspell.json');
+  });
+
+  it('rejects an unrecognised SPELLCHECK_MODE', () => {
+    expect(() => readConfig({ ...VALID_ENV, SPELLCHECK_MODE: 'bogus' })).toThrow(/SPELLCHECK_MODE must be "source" or "rendered"/);
+  });
+
+  describe('source mode with no DIFF (whole-checkout glob)', () => {
+    it('does not require BRANCH/GITHUB_ORG/GH_TOKEN — there is no PR context to fall back on', () => {
+      const config = readConfig({});
+
+      expect(config).toEqual({
+        mode: 'source',
+        dictionaryPath: null,
+        cspellConfigPath: '.cspell.json',
+        extensions: ['ts', 'tsx', 'html', 'md', 'mdx', 'json'],
+      });
+    });
+
+    it('parses a custom EXTENSIONS list, trimming whitespace and leading dots', () => {
+      const config = readConfig({ EXTENSIONS: ' ts, .tsx ,md' });
+
+      expect(config.extensions).toEqual(['ts', 'tsx', 'md']);
+    });
+
+    it('an empty DIFF (explicitly set) behaves the same as DIFF being unset', () => {
+      const config = readConfig({ DIFF: '' });
+
+      expect(config).toEqual({
+        mode: 'source',
+        dictionaryPath: null,
+        cspellConfigPath: '.cspell.json',
+        extensions: ['ts', 'tsx', 'html', 'md', 'mdx', 'json'],
+      });
+    });
+  });
+
+  describe('rendered mode', () => {
+    it('accepts RENDERED_CONTENT_PATH alone, without BASE_URL/ROUTES', () => {
+      const config = readConfig({ SPELLCHECK_MODE: 'rendered', RENDERED_CONTENT_PATH: 'e2e/rendered.json' });
+
+      expect(config).toEqual({
+        mode: 'rendered',
+        dictionaryPath: null,
+        cspellConfigPath: '.cspell.json',
+        renderedContentPath: 'e2e/rendered.json',
+        routes: [],
+        baseUrl: null,
+      });
+    });
+
+    it('accepts BASE_URL + ROUTES alone, without RENDERED_CONTENT_PATH', () => {
+      const config = readConfig({ SPELLCHECK_MODE: 'rendered', BASE_URL: 'http://localhost:4173', ROUTES: '/ /about' });
+
+      expect(config).toEqual({
+        mode: 'rendered',
+        dictionaryPath: null,
+        cspellConfigPath: '.cspell.json',
+        renderedContentPath: null,
+        routes: ['/', '/about'],
+        baseUrl: 'http://localhost:4173',
+      });
+    });
+
+    it('throws when neither RENDERED_CONTENT_PATH nor BASE_URL+ROUTES is given', () => {
+      expect(() => readConfig({ SPELLCHECK_MODE: 'rendered' })).toThrow(/RENDERED_CONTENT_PATH.*BASE_URL/s);
+    });
+
+    it('throws when BASE_URL is given without ROUTES', () => {
+      expect(() => readConfig({ SPELLCHECK_MODE: 'rendered', BASE_URL: 'http://localhost:4173' })).toThrow(
+        /RENDERED_CONTENT_PATH.*BASE_URL/s
+      );
+    });
   });
 });
 
@@ -173,6 +279,45 @@ describe('getFileContent', () => {
   });
 });
 
+describe('listCheckoutFiles', () => {
+  it('runs git ls-files against the workspace and filters by extension', () => {
+    execSync.mockReturnValue('README.md\nsrc/App.tsx\nsrc/App.test.tsx\npackage.json\nlogo.png\n');
+
+    const files = listCheckoutFiles('/repo', ['md', 'tsx']);
+
+    expect(execSync).toHaveBeenCalledWith('git ls-files', { cwd: '/repo', encoding: 'utf-8' });
+    expect(files).toEqual(['README.md', 'src/App.tsx', 'src/App.test.tsx']);
+  });
+
+  it('is case-insensitive and ignores blank lines', () => {
+    execSync.mockReturnValue('DOCS.MD\n\n\nnotes.txt\n');
+
+    expect(listCheckoutFiles('/repo', ['md'])).toEqual(['DOCS.MD']);
+  });
+});
+
+describe('resolveCspellConfigPath', () => {
+  it('returns the base config path unchanged when there is no consumer dictionary', () => {
+    const { configPath, cleanup } = resolveCspellConfigPath('/shared/.cspell.json', null);
+
+    expect(configPath).toBe('/shared/.cspell.json');
+    expect(() => cleanup()).not.toThrow();
+  });
+
+  it('writes a merged config importing both files when a dictionary is given, and cleanup removes it', () => {
+    const { configPath, cleanup } = resolveCspellConfigPath('/shared/.cspell.json', '/repo/.cspell.json');
+
+    expect(configPath).not.toBe('/shared/.cspell.json');
+    expect(existsSync(configPath)).toBe(true);
+
+    const written = JSON.parse(readFileSync(configPath, 'utf-8'));
+    expect(written.import).toEqual(['/shared/.cspell.json', '/repo/.cspell.json']);
+
+    cleanup();
+    expect(existsSync(configPath)).toBe(false);
+  });
+});
+
 describe('runCspell', () => {
   it('passes --config and quotes both paths', () => {
     execSync.mockReturnValue('');
@@ -226,6 +371,107 @@ describe('spellCheckFile', () => {
     expect(() => spellCheckFile('docs/a.md', 'content', '.cspell.json')).toThrow('cspell crashed');
     expect(existsSync(capturedPath)).toBe(false);
   });
+
+  it('works with a route label (rendered mode reuses this same helper)', () => {
+    execSync.mockImplementation((command) => {
+      const tempPath = command.match(/"([^"]+)"$/)[1];
+      return `${tempPath}:1:1 - Unknown word (wrod)\n`;
+    });
+
+    const result = spellCheckFile('/about', 'a wrod', '.cspell.json');
+
+    expect(result.file).toBe('/about');
+    expect(result.output).toContain('/about:1:1');
+  });
+});
+
+describe('buildRenderedText', () => {
+  it('joins innerText, description, and labels with newlines', () => {
+    const text = buildRenderedText({
+      innerText: 'Hello world',
+      description: 'A portfolio site',
+      labels: ['Profile photo', 'Open menu'],
+    });
+
+    expect(text).toBe('Hello world\nA portfolio site\nProfile photo\nOpen menu');
+  });
+
+  it('omits empty pieces rather than leaving blank lines', () => {
+    expect(buildRenderedText({ innerText: 'Hello', description: '', labels: [] })).toBe('Hello');
+  });
+
+  it('defaults every field so a partial scrape does not throw', () => {
+    expect(buildRenderedText({})).toBe('');
+  });
+});
+
+describe('loadRenderedEntries', () => {
+  let workspace;
+
+  beforeEach(() => {
+    workspace = mkdtempSync(join(tmpdir(), 'spellcheck-rendered-'));
+  });
+
+  afterEach(() => {
+    rmSync(workspace, { recursive: true, force: true });
+  });
+
+  it('parses a JSON array of scraped entries into { route, text }', () => {
+    const path = join(workspace, 'rendered.json');
+    writeFileSync(
+      path,
+      JSON.stringify([
+        { route: '/', innerText: 'Home', description: 'Welcome', labels: ['Logo'] },
+        { route: '/about', innerText: 'About', description: '', labels: [] },
+      ])
+    );
+
+    expect(loadRenderedEntries(path)).toEqual([
+      { route: '/', text: 'Home\nWelcome\nLogo' },
+      { route: '/about', text: 'About' },
+    ]);
+  });
+
+  it('throws when the file does not contain a JSON array', () => {
+    const path = join(workspace, 'rendered.json');
+    writeFileSync(path, JSON.stringify({ route: '/' }));
+
+    expect(() => loadRenderedEntries(path)).toThrow(/must contain a JSON array/);
+  });
+
+  it('throws when an entry is missing a route', () => {
+    const path = join(workspace, 'rendered.json');
+    writeFileSync(path, JSON.stringify([{ innerText: 'Home' }]));
+
+    expect(() => loadRenderedEntries(path)).toThrow(/missing "route"/);
+  });
+});
+
+describe('extractRenderedEntries', () => {
+  it('visits every route and scrapes innerText, description, and labels via buildRenderedText', async () => {
+    mockPage.evaluate.mockResolvedValue({
+      innerText: 'Home page',
+      description: 'A portfolio',
+      labels: ['Logo'],
+    });
+
+    const entries = await extractRenderedEntries('http://localhost:4173', ['/', '/about']);
+
+    expect(mockPage.goto).toHaveBeenCalledWith('http://localhost:4173/', { waitUntil: 'networkidle' });
+    expect(mockPage.goto).toHaveBeenCalledWith('http://localhost:4173/about', { waitUntil: 'networkidle' });
+    expect(entries).toEqual([
+      { route: '/', text: 'Home page\nA portfolio\nLogo' },
+      { route: '/about', text: 'Home page\nA portfolio\nLogo' },
+    ]);
+    expect(mockBrowser.close).toHaveBeenCalled();
+  });
+
+  it('closes the browser even when scraping throws', async () => {
+    mockPage.goto.mockRejectedValue(new Error('navigation failed'));
+
+    await expect(extractRenderedEntries('http://localhost:4173', ['/'])).rejects.toThrow('navigation failed');
+    expect(mockBrowser.close).toHaveBeenCalled();
+  });
 });
 
 describe('setOutputs', () => {
@@ -260,32 +506,108 @@ describe('run', () => {
     process.env = original;
   });
 
-  it('sets SPELL_ERRORS to an empty JSON array when there is nothing to report', async () => {
-    process.env.DIFF = 'clean.md';
-    writeFileSync(join(workspace, 'clean.md'), 'clean text');
-    execSync.mockReturnValue('');
+  describe('source mode with DIFF (unchanged behaviour)', () => {
+    it('sets SPELL_ERRORS to an empty JSON array when there is nothing to report', async () => {
+      process.env.DIFF = 'clean.md';
+      writeFileSync(join(workspace, 'clean.md'), 'clean text');
+      execSync.mockReturnValue('');
 
-    const result = await run();
+      const result = await run();
 
-    expect(result).toEqual([]);
-    expect(core.setOutput).toHaveBeenCalledWith('SPELL_ERRORS', '[]');
-  });
-
-  it('produces one entry per file with issues and skips clean files', async () => {
-    process.env.DIFF = 'a.md b.md';
-    writeFileSync(join(workspace, 'a.md'), 'bad wrod');
-    writeFileSync(join(workspace, 'b.md'), 'clean text');
-
-    execSync.mockImplementation((command) => {
-      const tempPath = command.match(/"([^"]+)"$/)[1];
-      const content = readFileSync(tempPath, 'utf-8');
-      return content.includes('wrod') ? `${tempPath}:1:5 - Unknown word (wrod)\n` : '';
+      expect(result).toEqual([]);
+      expect(core.setOutput).toHaveBeenCalledWith('SPELL_ERRORS', '[]');
     });
 
-    const result = await run();
+    it('produces one entry per file with issues and skips clean files', async () => {
+      process.env.DIFF = 'a.md b.md';
+      writeFileSync(join(workspace, 'a.md'), 'bad wrod');
+      writeFileSync(join(workspace, 'b.md'), 'clean text');
 
-    expect(result).toHaveLength(1);
-    expect(result[0].file).toBe('a.md');
-    expect(core.setOutput).toHaveBeenCalledWith('SPELL_ERRORS', JSON.stringify(result));
+      execSync.mockImplementation((command) => {
+        const tempPath = command.match(/"([^"]+)"$/)[1];
+        const content = readFileSync(tempPath, 'utf-8');
+        return content.includes('wrod') ? `${tempPath}:1:5 - Unknown word (wrod)\n` : '';
+      });
+
+      const result = await run();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].file).toBe('a.md');
+      expect(core.setOutput).toHaveBeenCalledWith('SPELL_ERRORS', JSON.stringify(result));
+    });
+  });
+
+  describe('source mode, whole-checkout glob (no DIFF)', () => {
+    it('checks every git-tracked file matching EXTENSIONS, read straight off disk', async () => {
+      delete process.env.DIFF;
+      delete process.env.BRANCH;
+      delete process.env.GITHUB_ORG;
+      delete process.env.GH_TOKEN;
+      process.env.EXTENSIONS = 'md';
+      writeFileSync(join(workspace, 'good.md'), 'clean text');
+      writeFileSync(join(workspace, 'bad.md'), 'a wrod here');
+
+      execSync.mockImplementation((command) => {
+        if (command === 'git ls-files') {
+          return 'good.md\nbad.md\nREADME.txt\n';
+        }
+        const tempPath = command.match(/"([^"]+)"$/)[1];
+        const content = readFileSync(tempPath, 'utf-8');
+        return content.includes('wrod') ? `${tempPath}:1:3 - Unknown word (wrod)\n` : '';
+      });
+
+      const result = await run();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].file).toBe('bad.md');
+    });
+  });
+
+  describe('rendered mode', () => {
+    it('checks pre-extracted text from RENDERED_CONTENT_PATH without touching a browser', async () => {
+      delete process.env.DIFF;
+      delete process.env.BRANCH;
+      delete process.env.GITHUB_ORG;
+      delete process.env.GH_TOKEN;
+      process.env.SPELLCHECK_MODE = 'rendered';
+      process.env.RENDERED_CONTENT_PATH = 'rendered.json';
+      writeFileSync(
+        join(workspace, 'rendered.json'),
+        JSON.stringify([
+          { route: '/', innerText: 'a wrod on the homepage', description: '', labels: [] },
+          { route: '/about', innerText: 'clean text', description: '', labels: [] },
+        ])
+      );
+
+      execSync.mockImplementation((command) => {
+        const tempPath = command.match(/"([^"]+)"$/)[1];
+        const content = readFileSync(tempPath, 'utf-8');
+        return content.includes('wrod') ? `${tempPath}:1:3 - Unknown word (wrod)\n` : '';
+      });
+
+      const result = await run();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].file).toBe('/');
+      expect(mockBrowser.newPage).not.toHaveBeenCalled();
+    });
+
+    it('drives its own browser when RENDERED_CONTENT_PATH is not given', async () => {
+      delete process.env.DIFF;
+      delete process.env.BRANCH;
+      delete process.env.GITHUB_ORG;
+      delete process.env.GH_TOKEN;
+      process.env.SPELLCHECK_MODE = 'rendered';
+      process.env.BASE_URL = 'http://localhost:4173';
+      process.env.ROUTES = '/';
+      mockPage.evaluate.mockResolvedValue({ innerText: 'clean text', description: '', labels: [] });
+      execSync.mockReturnValue('');
+
+      const result = await run();
+
+      expect(result).toEqual([]);
+      expect(mockBrowser.newPage).toHaveBeenCalled();
+      expect(mockBrowser.close).toHaveBeenCalled();
+    });
   });
 });

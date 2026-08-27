@@ -1,42 +1,129 @@
 name: spell check
-description: using Cspell to check the spelling from the input DIFF files
+description: >
+  Spell checks either the checkout (source mode: a PR's changed files, or the
+  whole tree globbed by extension) or a running site's rendered text
+  (rendered mode: per-route innerText, meta description, and alt/aria-label/
+  title attributes) with cspell.
 
 inputs:
+  SPELLCHECK_MODE:
+    description: >
+      "source" (default) or "rendered". source checks files in the checkout;
+      rendered checks visible text scraped from a running site.
+    required: false
+    default: "source"
   DIFF:
-    description: List of space delimted files from pull request to be checked
-    required: true
+    description: >
+      List of space delimited files from pull request to be checked (source
+      mode). When empty, source mode globs the whole checkout by EXTENSIONS
+      instead.
+    required: false
+    default: ""
+  EXTENSIONS:
+    description: >
+      Comma delimited file extensions to glob when source mode has no DIFF
+      (e.g. a scheduled run with no PR context). Defaults to
+      "ts,tsx,html,md,mdx,json" when unset and needed.
+    required: false
+    default: ""
   BRANCH:
-    description: name of the ref where the content should be spell checked
-    required: true
+    description: name of the ref where the content should be spell checked (source mode with DIFF)
+    required: false
+    default: ""
   GITHUB_ORG:
-    description: <github owner/github repo>
-    required: true
+    description: <github owner/github repo> (source mode with DIFF)
+    required: false
+    default: ""
   GH_TOKEN:
-    description: token for the use triggering the wf
-    required: true
+    description: token for the use triggering the wf (source mode with DIFF)
+    required: false
+    default: ""
+  ROUTES:
+    description: Space delimited routes to check in rendered mode, when BASE_URL is also set
+    required: false
+    default: ""
+  BASE_URL:
+    description: >
+      Base URL of a running site, for rendered mode when the action should
+      drive its own browser. Ignored when RENDERED_CONTENT_PATH is set.
+    required: false
+    default: ""
+  RENDERED_CONTENT_PATH:
+    description: >
+      Path (relative to the checkout) to a JSON file of pre-extracted rendered
+      text a consumer's own e2e job already scraped — one entry per route,
+      each `{ route, innerText, description, labels }`. When set, rendered
+      mode skips owning a browser entirely and only runs cspell. This is the
+      preferred rendered-mode input for a repo that already runs Playwright
+      (e.g. one that boots `vite preview` under its own e2e suite); BASE_URL/
+      ROUTES is for a repo with no e2e infrastructure of its own.
+    required: false
+    default: ""
+  DICTIONARY:
+    description: >
+      Path (relative to the checkout) to a consumer-owned cspell config
+      carrying that project's own proper nouns. Merged with the shared
+      baseline via cspell's own `import`, not replacing it — the consumer's
+      file only needs its own `words`.
+    required: false
+    default: ""
 outputs:
   SPELL_ERRORS:
-    description: JSON array of { file, output } entries, one per file with spelling issues. Always set, "[]" when there are none.
+    description: JSON array of { file, output } entries, one per file (or route, in rendered mode) with spelling issues. Always set, "[]" when there are none.
     value: ${{ steps.spellcheck.outputs.SPELL_ERRORS }}
 
 runs:
   using: composite
   steps:
+    # Whether there is anything to do this run. Preserves the original
+    # skip-when-nothing-changed behaviour for source+DIFF callers (DIFF ==
+    # '' and every new input left at its default means "no PR files
+    # changed," not "run in some other mode") while letting the two new
+    # capabilities (EXTENSIONS set, or SPELLCHECK_MODE == 'rendered') actually run even
+    # though DIFF is empty for both of them.
+    - name: Install dependencies
+      id: install
+      shell: bash
+      if: ${{ inputs.DIFF != '' || inputs.EXTENSIONS != '' || inputs.SPELLCHECK_MODE == 'rendered' }}
+      run: |
+        cd ${{ github.action_path }}
+        yarn install --frozen-lockfile --production --non-interactive
+      env:
+        # Skip the `playwright` package's own postinstall browser download —
+        # only the self-driven rendered path (no RENDERED_CONTENT_PATH) needs
+        # a browser at all, and that is installed explicitly below so every
+        # other caller (source mode, or rendered mode with a consumer-
+        # supplied RENDERED_CONTENT_PATH) never pays for it.
+        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
+    - name: Install browser for self-driven rendered mode
+      id: install_browser
+      shell: bash
+      if: ${{ inputs.SPELLCHECK_MODE == 'rendered' && inputs.RENDERED_CONTENT_PATH == '' }}
+      run: |
+        cd ${{ github.action_path }}
+        npx --yes playwright install --with-deps chromium
+
     - name: 🔠 Spell Check
       id: spellcheck
       shell: bash
       # Wrapped in ${{ }} so the whole comparison is one expression. Unwrapped,
       # GitHub interpolates DIFF into the condition before it is parsed, so a
       # two-file DIFF becomes the invalid `a.md b.md != ''`.
-      if: ${{ inputs.DIFF != '' }}
+      if: ${{ inputs.DIFF != '' || inputs.EXTENSIONS != '' || inputs.SPELLCHECK_MODE == 'rendered' }}
       run: |
         cd ${{ github.action_path }}
-        yarn install --frozen-lockfile --production --non-interactive
         yarn spell
       env:
+        SPELLCHECK_MODE: ${{ inputs.SPELLCHECK_MODE }}
         DIFF: ${{ inputs.DIFF }}
+        EXTENSIONS: ${{ inputs.EXTENSIONS }}
         GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         BRANCH: ${{ inputs.BRANCH }}
+        ROUTES: ${{ inputs.ROUTES }}
+        BASE_URL: ${{ inputs.BASE_URL }}
+        RENDERED_CONTENT_PATH: ${{ inputs.RENDERED_CONTENT_PATH }}
+        DICTIONARY: ${{ inputs.DICTIONARY }}
         # Config lives one directory up, shared with the rest of markdown-checks.
         CSPELL_CONFIG_PATH: ${{ github.action_path }}/../.cspell.json

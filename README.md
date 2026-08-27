@@ -143,29 +143,71 @@ Parses a resume PDF and scores its ATS (Applicant Tracking System) compatibility
 > **Setup:** add your APILayer key as a repository secret named `APILAYER_API_KEY`. A free key is
 > available at [apilayer.com](https://apilayer.com/marketplace/resume_parser-api).
 
+### Tests
+
+```bash
+cd ats-check
+yarn
+yarn test
+```
+
+Covers `scoreResume` and `buildMarkdownReport` (pure functions) plus the `action.yml` output
+contract. `parseResume` and the top-level script are not exercised here — they need a live call to
+the resume parser API, which has no place in a unit suite.
+
 ---
 
 ## `markdown-checks/spellcheck`
 
-Runs [cspell](https://cspell.org/) over the markdown files in `DIFF`. Reads each file straight
-from the checkout on disk, falling back to the GitHub API only when a file isn't there (e.g.
-`BRANCH` names a ref other than the one the calling workflow checked out). Project-specific words
-go in `markdown-checks/.cspell.json`.
+Runs [cspell](https://cspell.org/) in one of two modes, selected by `SPELLCHECK_MODE`:
+
+- **`source`** (default) — checks files in the checkout. With `DIFF` set, this is the original
+  behaviour: one cspell run per file in `DIFF`, read straight off disk and falling back to the
+  GitHub API only when a file isn't there (e.g. `BRANCH` names a ref other than the one the
+  calling workflow checked out). With `DIFF` empty, it globs the whole checkout (via `git
+  ls-files`, so `.gitignore`d paths are excluded) by `EXTENSIONS` instead — for a run with no PR
+  context, e.g. scheduled.
+- **`rendered`** — checks visible text scraped from a *running* site: `document.body.innerText`,
+  the `<meta name="description">` content, and every `alt`/`aria-label`/`title` attribute, per
+  route. On a React project this is the text a markdown glob never sees at all — hero copy,
+  button labels, `alt` text. Less noisy than `source` too, since markup and identifiers are
+  already excluded. Reads from either:
+  - `RENDERED_CONTENT_PATH` — a JSON file a consumer's own e2e job already scraped (preferred when
+    the consumer already runs Playwright, e.g. against a `vite preview` build — this way the
+    browser is never installed twice), or
+  - `BASE_URL` + `ROUTES` — the action drives its own browser instead, for a consumer with no e2e
+    infrastructure of its own. Only this path installs a browser (`npx playwright install`,
+    conditional on `SPELLCHECK_MODE == 'rendered'` with no `RENDERED_CONTENT_PATH`); every other
+    combination skips it.
+
+Project-specific words go in the *consumer's own* cspell config, passed via `DICTIONARY` — see
+below. `markdown-checks/.cspell.json` is only the shared baseline (generic tool names); it does
+not carry any one project's proper nouns.
 
 ### Inputs
 
-| Input | Required | Description |
-|---|---|---|
-| `DIFF` | ✅ | Space delimited list of files to check — pair with the `diff` action's `DIFF` output |
-| `BRANCH` | ✅ | Ref the content should be read from |
-| `GITHUB_ORG` | ✅ | `<owner>/<repo>` |
-| `GH_TOKEN` | ✅ | Token for the actor triggering the workflow |
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `SPELLCHECK_MODE` | — | `source` | `source` or `rendered` |
+| `DIFF` | — | `""` | Space delimited files to check (`source` mode) — pair with the `diff` action's `DIFF` output. Empty means glob the whole checkout instead. |
+| `EXTENSIONS` | — | `ts,tsx,html,md,mdx,json` | Comma delimited extensions to glob when `source` mode has no `DIFF` |
+| `BRANCH` | — | `""` | Ref to read from (`source` mode with `DIFF`) |
+| `GITHUB_ORG` | — | `""` | `<owner>/<repo>` (`source` mode with `DIFF`) |
+| `GH_TOKEN` | — | `""` | Token for the actor triggering the workflow (`source` mode with `DIFF`) |
+| `ROUTES` | — | `""` | Space delimited routes to check (`rendered` mode, with `BASE_URL`) |
+| `BASE_URL` | — | `""` | Base URL of a running site (`rendered` mode, self-driven browser) |
+| `RENDERED_CONTENT_PATH` | — | `""` | Path to pre-extracted `[{ route, innerText, description, labels }]` JSON (`rendered` mode, no browser needed) |
+| `DICTIONARY` | — | `""` | Path to a consumer-owned cspell config, merged with the shared baseline via cspell's own `import` |
+
+`DIFF`, `BRANCH`, `GITHUB_ORG`, and `GH_TOKEN` keep their original names and meaning — an existing
+caller that sets all four and nothing else sees identical behaviour to before `SPELLCHECK_MODE`
+and the other inputs existed.
 
 ### Outputs
 
 | Output | Description |
 |---|---|
-| `SPELL_ERRORS` | JSON array of `{ file, output }` entries, one per file with spelling issues. Always set, `"[]"` when there are none. |
+| `SPELL_ERRORS` | JSON array of `{ file, output }` entries, one per file (or route, in `rendered` mode) with spelling issues. Always set, `"[]"` when there are none. |
 
 ### Tests
 
@@ -176,7 +218,9 @@ yarn test
 ```
 
 Includes a real (unmocked) run of the cspell binary against `.cspell.json` to confirm its
-dictionary genuinely applies, alongside mocked unit tests for everything else.
+dictionary genuinely applies — and that a consumer-supplied `DICTIONARY` file merges in rather
+than replacing it — alongside mocked unit tests for everything else, including a mocked
+`playwright` for the self-driven rendered path.
 
 ---
 
