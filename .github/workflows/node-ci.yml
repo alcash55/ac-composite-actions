@@ -1,0 +1,140 @@
+name: Node CI (reusable)
+
+# Shared install/lint/typecheck/test/build pipeline for the Node projects that
+# don't live in this repo. Written once here rather than copy-pasted into six
+# small, single-maintainer repos that will never keep a hand-copied workflow
+# in sync with this one as it evolves.
+#
+# Real consumers are missing at least one of the five scripts below -- no
+# `typecheck` script is the most common gap on a plain Vite/JS project, and
+# some have no `lint` or `test` script either. A reusable workflow that hard-
+# fails because a project doesn't happen to define one of these is a workflow
+# nobody adopts, so each step below checks package.json for its script first
+# and skips with a notice instead of failing when it's absent. A repo that
+# only has `build` still gets a green, useful run instead of red noise.
+
+on:
+  workflow_call:
+    inputs:
+      WORKING_DIRECTORY:
+        description: "Directory (relative to repo root) containing the package.json to build"
+        required: false
+        type: string
+        default: "."
+      PACKAGE_MANAGER:
+        description: "npm, yarn, or bun -- must match the lockfile actually committed in WORKING_DIRECTORY"
+        required: false
+        type: string
+        default: "npm"
+      NODE_VERSION:
+        description: "Node version for actions/setup-node. Ignored when PACKAGE_MANAGER is bun, which ships its own runtime."
+        required: false
+        type: string
+        default: "20"
+      BUN_VERSION:
+        description: "Bun version for oven-sh/setup-bun. Ignored unless PACKAGE_MANAGER is bun."
+        required: false
+        type: string
+        default: "1.1.34"
+
+# Reusable workflows do not inherit the caller's permissions automatically --
+# they get whatever the calling job grants, capped by whatever this file asks
+# for. This pipeline only ever reads the repo (checkout, install, build,
+# test), so it declares that explicitly rather than relying on inheritance.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: install / lint / typecheck / test / build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.WORKING_DIRECTORY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        if: inputs.PACKAGE_MANAGER != 'bun'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.NODE_VERSION }}
+
+      # https://bun.sh/docs/cli/install#ci-cd
+      - name: Set up Bun
+        if: inputs.PACKAGE_MANAGER == 'bun'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ inputs.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          case "${{ inputs.PACKAGE_MANAGER }}" in
+            yarn) yarn install --frozen-lockfile ;;
+            bun)  bun install --frozen-lockfile ;;
+            npm)
+              # npm ci demands a lockfile in sync with package.json; fall back
+              # to npm install for the small/early repos this workflow is
+              # meant to onboard, some of which predate a committed lockfile.
+              if [ -f package-lock.json ]; then npm ci; else npm install; fi
+              ;;
+            *)
+              echo "::error::Unknown PACKAGE_MANAGER '${{ inputs.PACKAGE_MANAGER }}' -- expected npm, yarn, or bun." >&2
+              exit 1
+              ;;
+          esac
+
+      # jq ships on the ubuntu-latest runner image already, so this needs no
+      # extra install step. Checking package.json directly (rather than
+      # requiring the caller to declare which of the five scripts exist)
+      # keeps the interface to one input: point WORKING_DIRECTORY at a
+      # package.json and everything else is discovered.
+      - name: Detect available scripts
+        id: scripts
+        run: |
+          has_script() { jq -e --arg s "$1" '.scripts[$s] != null' package.json >/dev/null 2>&1; }
+          for s in lint typecheck test build; do
+            if has_script "$s"; then
+              echo "$s=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$s=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::No \"$s\" script in package.json -- skipping this step."
+            fi
+          done
+
+      - name: Lint
+        if: steps.scripts.outputs.lint == 'true'
+        run: |
+          case "${{ inputs.PACKAGE_MANAGER }}" in
+            yarn) yarn lint ;;
+            bun)  bun run lint ;;
+            *)    npm run lint ;;
+          esac
+
+      - name: Type check
+        if: steps.scripts.outputs.typecheck == 'true'
+        run: |
+          case "${{ inputs.PACKAGE_MANAGER }}" in
+            yarn) yarn typecheck ;;
+            bun)  bun run typecheck ;;
+            *)    npm run typecheck ;;
+          esac
+
+      - name: Test
+        if: steps.scripts.outputs.test == 'true'
+        run: |
+          case "${{ inputs.PACKAGE_MANAGER }}" in
+            yarn) yarn test ;;
+            bun)  bun run test ;;
+            *)    npm run test ;;
+          esac
+
+      - name: Build
+        if: steps.scripts.outputs.build == 'true'
+        run: |
+          case "${{ inputs.PACKAGE_MANAGER }}" in
+            yarn) yarn build ;;
+            bun)  bun run build ;;
+            *)    npm run build ;;
+          esac
