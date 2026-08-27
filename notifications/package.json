@@ -5,9 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "sendGithubMessage": "bun ",
-    "deleteGithubMessage": "bun",
-    "discordMessage": "bun index.js ",
+    "sendGithubMessage": "bun run github-comments/send-comment/index.js",
+    "deleteGithubMessage": "bun run github-comments/delete-comment/index.js",
     "test": "bun test"
   },
   "repository": {

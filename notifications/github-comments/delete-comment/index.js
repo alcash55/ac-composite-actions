@@ -3,7 +3,6 @@
 * filters comments based on a the text 'Markdown Checks', 'Broken Links', or 'Spell Check', and deletes the first matching comment.
 */
 
-
 /**
 * Represents a pull request comment
 * @typedef {object} PullRequestComment
@@ -12,186 +11,153 @@
 * @property {string} user - user who wrote the comment
 */
 
-
 import { Octokit } from '@octokit/rest';
 import * as core from '@actions/core';
 
+const CURRENT_HEADINGS = [
+  '# Markdown Checks',
+  '# Broken Links',
+  '# Spell Check',
+  '# Too many errors to show full message, fix errors to show fill issue list',
+];
+
+const LEGACY_HEADINGS = ['### **Style Errors**', '### **Bad Links**', '### **Filenames with Blanks**'];
 
 /**
-* @type {string}
+* Reads and validates the environment variables this script depends on.
+* @returns {{ owner: string, repo: string, prNumber: number, token: string }}
 */
-const org = process.env.ORG;
-/**
-* @type {string[]}
-*/
-const [owner, repo] = org.split('/');
-/**
-* @type {number}
-*/
-const prNumber = parseInt(process.env.PR_NUMBER);
-/**
-* @type {string}
-*/
-const ghToken = process.env.GH_TOKEN;
+export function readConfig(env = process.env) {
+  const missing = ['ORG', 'PR_NUMBER', 'GH_TOKEN'].filter((key) => !env[key]);
 
+  if (missing.length) {
+    throw new Error(`Missing required input(s): ${missing.join(', ')}`);
+  }
 
-const octokit = new Octokit({
- auth: ghToken,
-});
+  const [owner, repo] = env.ORG.split('/');
 
+  if (!owner || !repo) {
+    throw new Error(`ORG must be in "owner/repo" form, received "${env.ORG}"`);
+  }
+
+  const prNumber = Number.parseInt(env.PR_NUMBER, 10);
+
+  if (!Number.isInteger(prNumber) || prNumber <= 0) {
+    throw new Error(`PR_NUMBER must be a positive integer, received "${env.PR_NUMBER}"`);
+  }
+
+  return { owner, repo, prNumber, token: env.GH_TOKEN };
+}
 
 /**
 * Retrieves all comments found in PR.
 * @see https://docs.github.com/en/rest/issues/comments?apiVersion=2022-11-28#list-issue-comments
 * @async
-* @function getAllComments
-* @return {Promise<Array>}
+* @param {InstanceType<typeof Octokit>} octokit
+* @param {{ owner: string, repo: string, prNumber: number }} config
+* @return {Promise<PullRequestComment[]>}
 */
-async function getAllComments() {
- try {
-   const { data: comments } = await octokit.rest.issues.listComments({
-     owner: owner,
-     repo: repo,
-     issue_number: prNumber,
-   });
+export async function getAllComments(octokit, { owner, repo, prNumber }) {
+  const { data: comments } = await octokit.rest.issues.listComments({
+    owner,
+    repo,
+    issue_number: prNumber,
+  });
 
+  if (!comments.length) {
+    core.notice('No comments have been made');
+  }
 
-   if (!comments.length) {
-     core.notice('No comments have been made');
-     return [];
-   } else {
-     return comments;
-   }
- } catch (e) {
-   core.setFailed(`Action Failed with error: ${e}`);
-   console.error('Error getting comments: ', e);
-   return [];
- }
+  return comments;
 }
 
-
 /**
-* Take id from the most recent comment
+* Finds the most recent comment matching one of our own headings.
+*
+* A first-ever run on a PR has no previous comment by definition — that is
+* the normal, expected case, not a failure, so this returns `undefined`
+* rather than exiting the process. Exiting here previously killed the whole
+* action before the "send comment" step could run at all.
 * @function filterComments
 * @param {PullRequestComment[]} commentList
 * @return {number | undefined} - id of the comment that will be deleted, if no id return undefined
 */
 export function filterComments(commentList) {
- const filteredCommentList = commentList.filter((comment) => {
-   return [
-     '# Markdown Checks',
-     '# Broken Links',
-     '# Spell Check',
-     '# Too many errors to show full message, fix errors to show fill issue list',
-   ].some((text) => {
-     return comment.body?.includes(text);
-   });
- });
+  const filteredCommentList = commentList.filter((comment) =>
+    CURRENT_HEADINGS.some((text) => comment.body?.includes(text))
+  );
 
+  if (!filteredCommentList.length) {
+    core.notice('No matching comments');
+    return undefined;
+  }
 
- if (!filteredCommentList.length) {
-   console.log('Comments array length: ', filteredCommentList.length);
-   core.notice('No matching comments');
-   process.exit();
- }
+  const lastComment = filteredCommentList.pop()?.id;
 
+  core.info(`matching comment ID: ${lastComment}`);
 
- const lastComment = filteredCommentList.pop()?.id;
-
-
- console.log('matching comment ID: ', lastComment);
-
-
- return lastComment;
+  return lastComment;
 }
 
+/**
+* Finds the most recent comment matching a legacy (pre-rewrite) heading.
+* Same "no match is normal" rule as {@link filterComments}.
+* @param {PullRequestComment[]} commentList
+* @return {number | undefined}
+*/
+export function filterLegacyComments(commentList) {
+  const filteredCommentList = commentList.filter((comment) =>
+    LEGACY_HEADINGS.some((text) => comment.body?.includes(text))
+  );
+
+  if (!filteredCommentList.length) {
+    core.notice('No matching legacy comments');
+    return undefined;
+  }
+
+  return filteredCommentList.pop()?.id;
+}
 
 /**
 * Deletes the specified comment.
 * @see https://docs.github.com/en/rest/issues/comments?apiVersion=2022-11-28#delete-an-issue-comment
 * @async
-* @function deleteComment
+* @param {InstanceType<typeof Octokit>} octokit
+* @param {{ owner: string, repo: string }} config
 * @param {number} commentId - The ID of the comment to be deleted.
 */
-export async function deleteComment(commentId) {
- try {
-   await octokit.rest.issues.deleteComment({
-     owner: owner,
-     repo: repo,
-     comment_id: commentId,
-   });
-
-
-   core.notice(`comment #${commentId} deleted`);
-   console.log(`comment #${commentId} deleted`);
- } catch (e) {
-   core.setFailed(`Action Failed with: ${e}`);
-   console.error('Unable to delete comment: ', e);
- }
+export async function deleteComment(octokit, { owner, repo }, commentId) {
+  await octokit.rest.issues.deleteComment({ owner, repo, comment_id: commentId });
+  core.notice(`comment #${commentId} deleted`);
 }
 
+export async function run() {
+  const config = readConfig();
+  const octokit = new Octokit({ auth: config.token });
 
-/**
-* Delete Legacy comment.
-* **Once New Static Analysis is completely adopted this will be removed**
-* @param {PullRequestComment[]} commentList
-*/
-export async function deleteLegacyComment(commentList) {
- // get legacy comment id
- const filteredCommentList = commentList.filter((comment) => {
-   return ['### **Style Errors**', '### **Bad Links**', '### **Filenames with Blanks**'].some(
-     (text) => {
-       return comment.body?.includes(text);
-     },
-   );
- });
+  const commentList = await getAllComments(octokit, config);
 
+  const mostRecentCommentId = filterComments(commentList);
+  if (mostRecentCommentId) {
+    await deleteComment(octokit, config, mostRecentCommentId);
+  }
 
- let lastComment;
-
-
- if (!filteredCommentList.length) {
-   core.notice('No matching legacy comments');
-   process.exit();
- } else {
-   lastComment = filteredCommentList.pop();
- }
-
-
- // delete legacy comment
- try {
-   await octokit.rest.issues.deleteComment({
-     owner: owner,
-     repo: repo,
-     comment_id: lastComment.id,
-   });
-
-
-   core.notice(`Legacy comment #${lastComment.id} deleted`);
-   console.log(`Legacy comment #${lastComment.id} deleted`);
- } catch (e) {
-   core.setFailed(`Action Failed with error: ${e}`);
- }
+  // Independent of whether a current-style comment was found — a PR can be
+  // mid-migration and have only a legacy comment, or only a current one.
+  // **Once New Static Analysis is completely adopted this will be removed**
+  const legacyCommentId = filterLegacyComments(commentList);
+  if (legacyCommentId) {
+    await deleteComment(octokit, config, legacyCommentId);
+    core.notice(`Legacy comment #${legacyCommentId} deleted`);
+  }
 }
 
-
-try {
- const commentList = await getAllComments();
-
-
- if (commentList) {
-   const mostRecentCommentId = filterComments(commentList);
-
-
-   if (mostRecentCommentId) {
-     await deleteComment(mostRecentCommentId);
-     await deleteLegacyComment(commentList);
-   }
- } else {
-   console.log('No Pull Request Comments');
-   core.notice('No Pull Request Comments');
- }
-} catch (e) {
- core.setFailed(`Delete Comment Action Failed with error: ${e}`);
- console.log('Unable to delete old comment: ', e);
+// Only self-execute as the action entrypoint; importing this module for tests
+// must not fire a live API request.
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+  try {
+    await run();
+  } catch (e) {
+    core.setFailed(`Delete Comment Action Failed with error: ${e.message}`);
+  }
 }

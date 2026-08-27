@@ -16,8 +16,8 @@ inputs:
     required: true
 outputs:
   SPELL_ERRORS:
-    description:
-    value: ${{ steps.spellcheck.outputs.CSPELL_ERRORS }}
+    description: JSON array of { file, output } entries, one per file with spelling issues. Always set, "[]" when there are none.
+    value: ${{ steps.spellcheck.outputs.SPELL_ERRORS }}
 
 runs:
   using: composite
@@ -25,22 +25,18 @@ runs:
     - name: 🔠 Spell Check
       id: spellcheck
       shell: bash
-      if: ${{ inputs.DIFF }} != ''
+      # Wrapped in ${{ }} so the whole comparison is one expression. Unwrapped,
+      # GitHub interpolates DIFF into the condition before it is parsed, so a
+      # two-file DIFF becomes the invalid `a.md b.md != ''`.
+      if: ${{ inputs.DIFF != '' }}
       run: |
         cd ${{ github.action_path }}
-        yarn
+        yarn install --frozen-lockfile --production --non-interactive
         yarn spell
       env:
         DIFF: ${{ inputs.DIFF }}
         GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         BRANCH: ${{ inputs.BRANCH }}
-        CSPELL_CONFIG_PATH: ${{ github.action_path }}/.cspell.json
-
-    - name: test
-      shell: bash
-      run: echo ${{ steps.spellcheck.outputs.SPELL_ERRORS }}
-# yarn add cspell
-# CSPELL_ERRORS=$(cspell lint --no-exit-code --config ${{ github.action_path }}/.cspell.json ${{ inputs.DIFF }})
-# echo "CSPELL_ERRORS=$(CSPELL_ERRORS)" >> $GITHUB_OUTPUT
-
+        # Config lives one directory up, shared with the rest of markdown-checks.
+        CSPELL_CONFIG_PATH: ${{ github.action_path }}/../.cspell.json

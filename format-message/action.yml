@@ -19,7 +19,7 @@ runs:
       id: format_msg
       run: |
         cd ${{ github.action_path }}
-        yarn
+        yarn install --frozen-lockfile --production --non-interactive
         yarn format
       env:
         SPELL_MESSAGE: ${{ inputs.SPELL_MESSAGE }}

@@ -15,10 +15,10 @@ action takes effect immediately for every repo that uses it.
 |---|---|---|
 | [`diff`](#diff) | ✅ Ready | Lists the files changed in a pull request |
 | [`ats-check`](#ats-check) | ✅ Ready | Scores a resume PDF for ATS compatibility |
-| [`markdown-checks/spellcheck`](#markdown-checksspellcheck) | ⚠️ Partial | Spellchecks changed markdown with cspell |
-| [`notifications`](#notifications) | 🚧 Incomplete | Posts a PR comment or Discord message |
+| [`markdown-checks/spellcheck`](#markdown-checksspellcheck) | ✅ Ready | Spellchecks changed markdown with cspell |
+| [`notifications`](#notifications) | ✅ Ready | Posts a PR comment or Discord message |
 | [`notifications/discord-messages`](#notificationsdiscord-messages) | ✅ Ready | Sends a Discord webhook message |
-| [`format-message`](#format-message) | 🚧 Stub | Formats a spellcheck result into a comment body |
+| [`format-message`](#format-message) | ✅ Ready | Formats a spellcheck result into a comment body |
 
 ---
 
@@ -147,11 +147,10 @@ Parses a resume PDF and scores its ATS (Applicant Tracking System) compatibility
 
 ## `markdown-checks/spellcheck`
 
-Runs [cspell](https://cspell.org/) over the markdown files in `DIFF`, fetching each file's
-content from the GitHub API at the given branch.
-
-> ⚠️ Works, but rough: the action's `if:` guard is malformed and the temporary file it writes for
-> cspell is never cleaned up. Project-specific words go in `markdown-checks/.cspell.json`.
+Runs [cspell](https://cspell.org/) over the markdown files in `DIFF`. Reads each file straight
+from the checkout on disk, falling back to the GitHub API only when a file isn't there (e.g.
+`BRANCH` names a ref other than the one the calling workflow checked out). Project-specific words
+go in `markdown-checks/.cspell.json`.
 
 ### Inputs
 
@@ -166,22 +165,28 @@ content from the GitHub API at the given branch.
 
 | Output | Description |
 |---|---|
-| `SPELL_ERRORS` | cspell output for each file with spelling issues |
+| `SPELL_ERRORS` | JSON array of `{ file, output }` entries, one per file with spelling issues. Always set, `"[]"` when there are none. |
+
+### Tests
+
+```bash
+cd markdown-checks/spellcheck
+yarn
+yarn test
+```
+
+Includes a real (unmocked) run of the cspell binary against `.cspell.json` to confirm its
+dictionary genuinely applies, alongside mocked unit tests for everything else.
 
 ---
 
 ## `notifications`
 
-Intended as one entry point for both PR comments and Discord messages, switching on
-`MESSAGE_TYPE`.
-
-> 🚧 **Not usable yet.** The `sendGithubMessage`, `deleteGithubMessage` and `discordMessage`
-> scripts in `notifications/package.json` are empty stubs (`"bun"`, `"bun "`), so every step in
-> this action currently fails. Use
-> [`notifications/discord-messages`](#notificationsdiscord-messages) for Discord in the meantime.
->
-> Most of the delete path already exists in `notifications/github-comments/delete-comment/index.js`
-> — it finds the previous bot comment on the PR and removes it. It just is not wired to a script.
+One entry point for both PR comments and Discord messages, switching on `MESSAGE_TYPE`. For
+`github`, it first deletes the previous run's bot comment (matched by heading — see
+`github-comments/delete-comment`), then posts `MESSAGE` as a new comment, skipping the post when
+`MESSAGE` is empty. For `discord`, it delegates to
+[`notifications/discord-messages`](#notificationsdiscord-messages).
 
 ### Inputs
 
@@ -192,15 +197,15 @@ Intended as one entry point for both PR comments and Discord messages, switching
 | `GITHUB_ORG` | — | `<owner>/<repo>` — required when `MESSAGE_TYPE` is `github` |
 | `PR_NUMBER` | — | Pull request number — required when `MESSAGE_TYPE` is `github` |
 | `GH_TOKEN` | — | Token — required when `MESSAGE_TYPE` is `github` |
+| `WEBHOOK_URL` | — | Discord webhook URL — required when `MESSAGE_TYPE` is `discord` |
 
-### To finish it
+### Tests
 
-1. Point `deleteGithubMessage` at the existing `github-comments/delete-comment/index.js`.
-2. Add the matching `github-comments/send-comment/index.js` and point `sendGithubMessage` at it.
-3. Wire the Discord branch to `notifications/discord-messages` instead of the empty
-   `discordMessage` script.
-4. Declare `MESSAGE` in the step `env:` — it is currently accepted as an input but never passed
-   through to any script.
+```bash
+cd notifications
+bun install
+bun test
+```
 
 ---
 
@@ -231,18 +236,26 @@ Sends a message to a Discord channel through a webhook.
 
 ## `format-message`
 
-Turns a raw spellcheck result into a formatted comment body.
-
-> 🚧 **Stub.** `formatSpell()` has an empty `try` block and always returns an empty string, so
-> `FORMATTED_MESSAGE` is always empty.
+Turns the `SPELL_ERRORS` JSON from `markdown-checks/spellcheck` into a `# Spell Check` markdown PR
+comment, one section per file. Falls back to a `# Too many errors to show full message, fix errors
+to show fill issue list` heading with just the file list when the full body would exceed GitHub's
+65536 character comment limit.
 
 | Input | Required | Description |
 |---|---|---|
-| `SPELL_MESSAGE` | ✅ | Unformatted spellcheck output |
+| `SPELL_MESSAGE` | ✅ | Unformatted spellcheck output (JSON array of `{ file, output }`) |
 
 | Output | Description |
 |---|---|
-| `FORMATTED_MESSAGE` | Formatted message for the target channel |
+| `FORMATTED_MESSAGE` | Formatted message for the target channel, empty string when there's nothing to report |
+
+### Tests
+
+```bash
+cd format-message
+yarn
+yarn test
+```
 
 ---
 
@@ -252,7 +265,9 @@ Called with `uses:` at the job level rather than the step level.
 
 ### `resume-analysis.yml`
 
-Chains diff → spellcheck → ATS check → format → PR comment.
+Checks out the calling repo, then chains diff → spellcheck → ATS check → format → PR comment. On
+any step failure, a best-effort "Notify Step Errors" step posts a `# Markdown Checks` comment
+linking to the failed run.
 
 ```yaml
 jobs:
@@ -267,8 +282,6 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       APILAYER_API_KEY: ${{ secrets.APILAYER_API_KEY }}
 ```
-
-> Depends on `notifications` and `format-message`, so the final comment step does not work yet.
 
 ### `portfolio-message.yml`
 

@@ -29,6 +29,14 @@ jobs:
   analysis:
     runs-on: ubuntu-latest
     steps:
+      # ats-check reads the resume PDF from disk (github.workspace) and spellcheck
+      # now prefers reading changed files from disk over the GitHub API — both
+      # need the calling repo checked out first, which this workflow never did.
+      - name: 📂 Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.BRANCH }}
+
       - name: 🔍 Get Diff
         id: diff
         uses: alcash55/ac-composite-actions/diff@main
@@ -69,7 +77,16 @@ jobs:
           MESSAGE_TYPE: "github"
           MESSAGE: ${{ steps.create_msg.outputs.FORMATTED_MESSAGE }}
 
-      # - name: 🚨 Notify Step Errors
-      #   id: step_errors
-      #   uses: alcash55/ac-composite-actions/notifications@main
-      #   with:
+      - name: 🚨 Notify Step Errors
+        id: step_errors
+        if: failure()
+        uses: alcash55/ac-composite-actions/notifications@main
+        with:
+          GITHUB_ORG: ${{ inputs.ORG }}
+          PR_NUMBER: ${{ inputs.PR_NUMBER }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          MESSAGE_TYPE: "github"
+          MESSAGE: |
+            # Markdown Checks
+
+            ⚠️ The resume analysis workflow failed before it could finish. See the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.

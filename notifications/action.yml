@@ -17,6 +17,9 @@ inputs:
   GH_TOKEN:
     description: Token for the use triggering the wf
     required: false
+  WEBHOOK_URL:
+    description: Discord webhook URL — required when MESSAGE_TYPE is 'discord'
+    required: false
 
 runs:
   using: "composite"
@@ -27,8 +30,8 @@ runs:
       if: ${{ inputs.MESSAGE_TYPE == 'github' }}
       run: |
         cd ${{ github.action_path }}
-        yarn
-        yarn deleteGithubMessage
+        yarn install --frozen-lockfile --production --non-interactive
+        yarn run deleteGithubMessage
       env:
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         PR_NUMBER: ${{ inputs.PR_NUMBER }}
@@ -37,21 +40,25 @@ runs:
     - name: Send GitHub Pull Request Comment
       id: send_pr_msg
       shell: bash
-      if: ${{ inputs.MESSAGE_TYPE == 'github' }}
+      # Nothing to post when MESSAGE is empty (e.g. a clean spellcheck run) —
+      # posting an empty comment would just be noise on the PR.
+      if: ${{ inputs.MESSAGE_TYPE == 'github' && inputs.MESSAGE != '' }}
       run: |
         cd ${{ github.action_path }}
-        yarn
-        yarn sendGithubMessage
+        yarn install --frozen-lockfile --production --non-interactive
+        yarn run sendGithubMessage
       env:
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         PR_NUMBER: ${{ inputs.PR_NUMBER }}
         ORG: ${{ inputs.GITHUB_ORG }}
+        MESSAGE: ${{ inputs.MESSAGE }}
 
     - name: Send Discord Message
       id: send_discord_msg
-      shell: bash
       if: ${{ inputs.MESSAGE_TYPE == 'discord' }}
-      run: |
-        cd ${{ github.action_path }}
-        yarn
-        yarn discordMessage
+      # Delegates to the finished discord-messages action rather than the
+      # (empty) discordMessage script — see notifications/discord-messages.
+      uses: alcash55/ac-composite-actions/notifications/discord-messages@main
+      with:
+        WEBHOOK_URL: ${{ inputs.WEBHOOK_URL }}
+        MESSAGE: ${{ inputs.MESSAGE }}
