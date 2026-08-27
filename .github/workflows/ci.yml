@@ -23,6 +23,7 @@ jobs:
         include:
           - { dir: diff, pm: yarn }
           - { dir: markdown-checks/spellcheck, pm: yarn }
+          - { dir: accessibility/axe-check, pm: yarn }
           - { dir: format-message, pm: yarn }
           - { dir: notifications, pm: bun }
           - { dir: ats-check, pm: yarn }
