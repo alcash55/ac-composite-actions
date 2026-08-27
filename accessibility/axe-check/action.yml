@@ -66,7 +66,12 @@ runs:
     - name: Install browser for self-driven mode
       id: install_browser
       shell: bash
-      if: ${{ inputs.RESULTS_PATH == '' }}
+      # Also requires BASE_URL, not just an absent RESULTS_PATH. A caller
+      # that supplies neither is misconfigured and the check step throws for
+      # it a moment later — but downloading Chromium first, only to fail on
+      # inputs that were already known to be missing, spends several CI
+      # minutes to reach the same error.
+      if: ${{ inputs.RESULTS_PATH == '' && inputs.BASE_URL != '' }}
       run: |
         cd ${{ github.action_path }}
         npx --yes playwright install --with-deps chromium
