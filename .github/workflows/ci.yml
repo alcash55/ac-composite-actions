@@ -21,18 +21,16 @@ jobs:
         # this workflow needs to change — install/test steps below are generic.
         # `pm` is whichever package manager that directory's scripts use (yarn or bun).
         #
-        # Directories intentionally NOT listed yet (no runnable test script as of
-        # this workflow's creation — confirmed by running `<pm> test` locally):
-        #   - ats-check                    (test script references vitest, which
-        #                                    isn't installed; not our call to add,
-        #                                    the directory is off-limits this sprint)
-        #   - format-message               (test script is the npm-init placeholder
-        #                                    "test", always exits 1)
-        #   - notifications                (bun test finds zero test files)
-        #   - markdown-checks/spellcheck   (vitest configured, zero test files)
-        # Add each above the line once its owning change lands with real tests.
+        # Directories intentionally NOT listed:
+        #   - ats-check   Its `test` script invokes vitest, which is not a declared
+        #                 dependency there, so it exits 127 the moment anyone runs
+        #                 it. Listing it would fail every PR. Tracked as follow-up
+        #                 work; the action itself is in production and unaffected.
         include:
           - { dir: diff, pm: yarn }
+          - { dir: markdown-checks/spellcheck, pm: yarn }
+          - { dir: format-message, pm: yarn }
+          - { dir: notifications, pm: bun }
 
     steps:
       - name: Checkout
