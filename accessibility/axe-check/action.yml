@@ -1,0 +1,84 @@
+name: axe accessibility check
+description: >
+  Runs @axe-core/playwright's WCAG 2 A/AA ruleset either against results a
+  consumer's own e2e job already computed, or by driving its own browser
+  against a running site.
+
+inputs:
+  RESULTS_PATH:
+    description: >
+      Path (relative to the checkout) to a JSON file of axe results a
+      consumer's own e2e job already computed — a JSON array of
+      { route, violations } entries, where `violations` is exactly the
+      array @axe-core/playwright's `AxeBuilder(...).analyze()` returns as
+      `results.violations`. When set, this action skips owning a browser
+      entirely. Preferred for a consumer that already runs
+      @axe-core/playwright under its own Playwright suite (e.g. one that
+      boots `vite preview` under its own e2e job) — BASE_URL/ROUTES is for a
+      consumer with no e2e infrastructure of its own.
+    required: false
+    default: ""
+  ROUTES:
+    description: Space delimited routes to check in self-driven mode, when BASE_URL is also set
+    required: false
+    default: ""
+  BASE_URL:
+    description: >
+      Base URL of a running, reachable site, for self-driven mode when the
+      action should drive its own browser. Ignored when RESULTS_PATH is set.
+      Must be reachable from this job's own runner — a `vite preview`
+      server booted inside a different job is not.
+    required: false
+    default: ""
+  TAGS:
+    description: >
+      Comma delimited axe rule tags for self-driven mode. Defaults to
+      "wcag2a,wcag2aa" so a self-driven run checks the same rule set a
+      consumer supplying RESULTS_PATH is expected to have checked against.
+    required: false
+    default: "wcag2a,wcag2aa"
+
+outputs:
+  AXE_VIOLATIONS:
+    description: >
+      JSON array of { route, violations } entries, one per route checked.
+      Always set, "[]" when every route is clean. This action reports and
+      does not fail its own step on a violation — a caller decides whether
+      that should fail its job (accessibility-analysis.yml, the wrapping
+      reusable workflow, does).
+    value: ${{ steps.axe_check.outputs.AXE_VIOLATIONS }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      id: install
+      shell: bash
+      run: |
+        cd ${{ github.action_path }}
+        yarn install --frozen-lockfile --production --non-interactive
+      env:
+        # Only the self-driven path (no RESULTS_PATH) needs a browser at
+        # all, and that is installed explicitly below — a RESULTS_PATH
+        # caller never pays for it.
+        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
+    - name: Install browser for self-driven mode
+      id: install_browser
+      shell: bash
+      if: ${{ inputs.RESULTS_PATH == '' }}
+      run: |
+        cd ${{ github.action_path }}
+        npx --yes playwright install --with-deps chromium
+
+    - name: ♿ Axe Accessibility Check
+      id: axe_check
+      shell: bash
+      run: |
+        cd ${{ github.action_path }}
+        yarn check
+      env:
+        RESULTS_PATH: ${{ inputs.RESULTS_PATH }}
+        ROUTES: ${{ inputs.ROUTES }}
+        BASE_URL: ${{ inputs.BASE_URL }}
+        TAGS: ${{ inputs.TAGS }}

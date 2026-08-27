@@ -16,6 +16,7 @@ action takes effect immediately for every repo that uses it.
 | [`diff`](#diff) | ✅ Ready | Lists the files changed in a pull request |
 | [`ats-check`](#ats-check) | ✅ Ready | Scores a resume PDF for ATS compatibility |
 | [`markdown-checks/spellcheck`](#markdown-checksspellcheck) | ✅ Ready | Spellchecks changed markdown with cspell |
+| [`accessibility/axe-check`](#accessibilityaxe-check) | ✅ Ready | Runs @axe-core/playwright's WCAG 2 A/AA ruleset |
 | [`notifications`](#notifications) | ✅ Ready | Posts a PR comment or Discord message |
 | [`notifications/discord-messages`](#notificationsdiscord-messages) | ✅ Ready | Sends a Discord webhook message |
 | [`format-message`](#format-message) | ✅ Ready | Formats a spellcheck result into a comment body |
@@ -224,6 +225,73 @@ than replacing it — alongside mocked unit tests for everything else, including
 
 ---
 
+## `accessibility/axe-check`
+
+Runs [`@axe-core/playwright`](https://www.npmjs.com/package/@axe-core/playwright)'s WCAG 2 A/AA
+ruleset, reading violations from either:
+
+- `RESULTS_PATH` — a JSON file a consumer's own e2e job already computed (preferred when the
+  consumer already runs `@axe-core/playwright` itself, e.g. against a `vite preview` build under
+  its own Playwright suite — this way the browser is never installed twice), or
+- `BASE_URL` + `ROUTES` — the action drives its own browser instead, for a consumer with no e2e
+  infrastructure of its own. Only this path installs a browser (`npx playwright install`,
+  conditional on `RESULTS_PATH` being unset); the other path skips it entirely.
+
+Unlike `markdown-checks/spellcheck`, this action does not fail its own step on a violation — it
+only reports `AXE_VIOLATIONS`. Whether that fails a job is a caller decision:
+[`accessibility-analysis.yml`](#accessibility-analysisyml), the reusable workflow that wraps this
+action, does gate on it, because a11y violations are a defect the check exists to catch, not a
+style nit like a typo.
+
+### Inputs
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `RESULTS_PATH` | — | `""` | Path to pre-computed `[{ route, violations }]` JSON (`violations` is exactly `AxeBuilder(...).analyze().violations`) — skips owning a browser |
+| `ROUTES` | — | `""` | Space delimited routes to check (self-driven mode, with `BASE_URL`) |
+| `BASE_URL` | — | `""` | Base URL of a running, reachable site (self-driven mode) |
+| `TAGS` | — | `wcag2a,wcag2aa` | Comma delimited axe rule tags for self-driven mode |
+
+### Outputs
+
+| Output | Description |
+|---|---|
+| `AXE_VIOLATIONS` | JSON array of `{ route, violations }` entries, one per route checked. Always set, `"[]"` when every route is clean. |
+
+### Example usage — consumer with no e2e infrastructure
+
+```yaml
+- uses: alcash55/ac-composite-actions/accessibility/axe-check@main
+  with:
+    BASE_URL: https://staging.example.com
+    ROUTES: "/ /about /contact"
+```
+
+### Example usage — consumer that already runs `@axe-core/playwright`
+
+A repo like Portfolio, whose own Playwright suite already runs `AxeBuilder` per route/theme and
+asserts inline, would add one step after its e2e run that serializes what it already computed:
+
+```yaml
+- name: ♿ Axe Accessibility Check
+  uses: alcash55/ac-composite-actions/accessibility/axe-check@main
+  with:
+    RESULTS_PATH: axe-results.json
+```
+
+### Tests
+
+```bash
+cd accessibility/axe-check
+yarn
+yarn test
+```
+
+Mocked unit tests, including a mocked `playwright` and `@axe-core/playwright` for the self-driven
+path — the same pattern `markdown-checks/spellcheck` uses for its own self-driven rendered mode.
+
+---
+
 ## `notifications`
 
 One entry point for both PR comments and Discord messages, switching on `MESSAGE_TYPE`. For
@@ -333,7 +401,18 @@ Sends a Discord webhook message. Inputs: `MESSAGE`, `WEBHOOK_URL`, `avatar_url`.
 
 ### `accessibility-analysis.yml`
 
-Placeholder — the job only echoes a string.
+Checks out the calling repo, runs [`accessibility/axe-check`](#accessibilityaxe-check), then fails
+the job if any route came back with a violation. See that action's own docs for the
+`RESULTS_PATH`-vs-`BASE_URL`/`ROUTES` split; this workflow forwards all four inputs unchanged.
+
+```yaml
+jobs:
+  accessibility:
+    uses: alcash55/ac-composite-actions/.github/workflows/accessibility-analysis.yml@main
+    with:
+      BASE_URL: https://staging.example.com
+      ROUTES: "/ /about /contact"
+```
 
 ---
 

@@ -1,11 +1,82 @@
-name: Accessibilty Analysis
+name: Accessibility Analysis
 on:
   workflow_call:
+    inputs:
+      RESULTS_PATH:
+        description: >
+          Path (relative to the checkout) to a JSON file of axe results a
+          consumer's own e2e job already computed — see
+          accessibility/axe-check's own inputs for the exact shape. When
+          set, this workflow skips owning a browser entirely. Preferred for
+          a consumer that already runs @axe-core/playwright under its own
+          Playwright suite; BASE_URL/ROUTES is for a consumer with no e2e
+          infrastructure of its own.
+        required: false
+        type: string
+        default: ""
+      ROUTES:
+        description: Space delimited routes to check in self-driven mode, when BASE_URL is also set
+        required: false
+        type: string
+        default: ""
+      BASE_URL:
+        description: >
+          Base URL of a running, reachable site, for self-driven mode when
+          this workflow should drive its own browser. Ignored when
+          RESULTS_PATH is set. Must be reachable from this workflow's own
+          runner — a preview server booted inside a different job is not.
+        required: false
+        type: string
+        default: ""
+      TAGS:
+        description: Comma delimited axe rule tags for self-driven mode
+        required: false
+        type: string
+        default: "wcag2a,wcag2aa"
   workflow_dispatch:
+
+# This workflow only reads the repo (checkout, and RESULTS_PATH when set) —
+# no write permission is needed.
+permissions:
+  contents: read
 
 jobs:
   accessibility:
     runs-on: ubuntu-latest
     steps:
-      - name: config axe
-        run: echo config axe
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: ♿ Axe Accessibility Check
+        id: axe_check
+        uses: alcash55/ac-composite-actions/accessibility/axe-check@main
+        with:
+          RESULTS_PATH: ${{ inputs.RESULTS_PATH }}
+          ROUTES: ${{ inputs.ROUTES }}
+          BASE_URL: ${{ inputs.BASE_URL }}
+          TAGS: ${{ inputs.TAGS }}
+
+      # axe-check reports rather than fails (see its own AXE_VIOLATIONS
+      # output description) so a caller that only wants the data — e.g. to
+      # post a PR comment instead of blocking the merge — can use the
+      # action directly. This workflow exists to be a complete, adoptable
+      # CI check for a repo with no accessibility gate of its own, so it
+      # gates here: a violation fails the job, the same way axe violations
+      # already fail Portfolio's own accessibility.spec.ts assertions.
+      - name: Fail on any axe violation
+        env:
+          AXE_VIOLATIONS: ${{ steps.axe_check.outputs.AXE_VIOLATIONS }}
+        run: |
+          total=$(echo "$AXE_VIOLATIONS" | jq '[.[].violations[]] | length')
+
+          if [ "$total" -eq 0 ]; then
+            echo "No axe violations on any checked route."
+            exit 0
+          fi
+
+          echo "::error::Axe found $total accessibility violation(s):"
+          echo "$AXE_VIOLATIONS" | jq -r '
+            .[] | select(.violations | length > 0) |
+            "\(.route):\n" + (.violations | map("  - [\(.impact // "unknown")] \(.id): \(.help)") | join("\n"))
+          '
+          exit 1
