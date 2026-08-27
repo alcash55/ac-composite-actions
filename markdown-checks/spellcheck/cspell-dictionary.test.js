@@ -1,12 +1,12 @@
 // Runs the real cspell binary against the real .cspell.json — no mocks. This
 // is the test for Item 2: the --config flag being commented out meant every
-// word in the custom dictionary (Vite, vitejs, NCR, Voyix) reported as a
-// misspelling. A mocked test can't catch that; only a real cspell run can.
+// word in the custom dictionary (Vite, vitejs) reported as a misspelling. A
+// mocked test can't catch that; only a real cspell run can.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { spellCheckFile } from './index.js';
+import { spellCheckFile, resolveCspellConfigPath } from './index.js';
 
 const CSPELL_CONFIG_PATH = new URL('../.cspell.json', import.meta.url).pathname;
 
@@ -29,10 +29,10 @@ describe('.cspell.json dictionary (real cspell binary)', () => {
     rmSync(workdir, { recursive: true, force: true });
   });
 
-  it('does not flag words from the custom dictionary', () => {
+  it('does not flag words from the shared dictionary', () => {
     const result = spellCheckFile(
       'docs/stack.md',
-      'We used Vite and vitejs to build the frontend for NCR Voyix.',
+      'We used Vite and vitejs to build the frontend.',
       CSPELL_CONFIG_PATH
     );
 
@@ -48,5 +48,36 @@ describe('.cspell.json dictionary (real cspell binary)', () => {
 
     expect(result).not.toBeNull();
     expect(result.output).toMatch(/wrod/);
+  });
+
+  // The dictionary moved into the consuming repo (Sprint 19): the shared
+  // baseline no longer carries any project's proper nouns (it used to carry
+  // "vsmarketplacebadge"/"visualstudio", words belonging to an entirely
+  // different project — see markdown-checks/.cspell.json history). A
+  // consumer supplies its own via DICTIONARY, merged in through cspell's own
+  // "import", not replacing the shared baseline.
+  it('flags a project-specific proper noun by default, but not once a consumer dictionary adds it', () => {
+    const withoutDictionary = spellCheckFile(
+      'docs/employer.md',
+      'I worked at NCR Voyix.',
+      CSPELL_CONFIG_PATH
+    );
+    expect(withoutDictionary).not.toBeNull();
+
+    const consumerDictionaryPath = join(workdir, 'consumer.cspell.json');
+    writeFileSync(consumerDictionaryPath, JSON.stringify({ words: ['Voyix', 'NCR'] }));
+
+    const { configPath, cleanup } = resolveCspellConfigPath(CSPELL_CONFIG_PATH, consumerDictionaryPath);
+    try {
+      const withDictionary = spellCheckFile('docs/employer.md', 'I worked at NCR Voyix.', configPath);
+      expect(withDictionary).toBeNull();
+
+      // The shared baseline's own words still apply — import merges rather
+      // than replaces.
+      const stillHasSharedWords = spellCheckFile('docs/stack.md', 'We used Vite and vitejs.', configPath);
+      expect(stillHasSharedWords).toBeNull();
+    } finally {
+      cleanup();
+    }
   });
 });
