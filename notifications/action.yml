@@ -30,8 +30,8 @@ runs:
       if: ${{ inputs.MESSAGE_TYPE == 'github' }}
       run: |
         cd ${{ github.action_path }}
-        yarn install --frozen-lockfile --production --non-interactive
-        yarn run deleteGithubMessage
+        bun install --frozen-lockfile --production
+        bun run deleteGithubMessage
       env:
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         PR_NUMBER: ${{ inputs.PR_NUMBER }}
@@ -45,8 +45,8 @@ runs:
       if: ${{ inputs.MESSAGE_TYPE == 'github' && inputs.MESSAGE != '' }}
       run: |
         cd ${{ github.action_path }}
-        yarn install --frozen-lockfile --production --non-interactive
-        yarn run sendGithubMessage
+        bun install --frozen-lockfile --production
+        bun run sendGithubMessage
       env:
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         PR_NUMBER: ${{ inputs.PR_NUMBER }}
