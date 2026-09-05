@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'fs';
+import { parse } from 'yaml';
 
 vi.mock('@actions/core', () => ({
   setOutput: vi.fn(),
@@ -46,6 +48,35 @@ function collectOutputs() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+// Required: the output-name contract that a CSPELL_ERRORS/SPELL_ERRORS style
+// mismatch would have caught. action.yml's `value:` references the name
+// index.js must set; if the two drift, the output silently stays empty.
+describe('action.yml <-> index.js output contract', () => {
+  it('sets every output name that action.yml references via steps.*.outputs.*', () => {
+    const doc = parse(readFileSync(new URL('./action.yml', import.meta.url), 'utf-8'));
+    const declaredNames = Object.values(doc.outputs ?? {}).map((output) => {
+      const match = String(output.value).match(/steps\.[\w-]+\.outputs\.([A-Za-z0-9_]+)/);
+
+      if (!match) {
+        throw new Error(`Could not parse an output reference from: ${output.value}`);
+      }
+
+      return match[1];
+    });
+
+    expect(declaredNames).not.toHaveLength(0);
+
+    const source = readFileSync(new URL('./index.js', import.meta.url), 'utf-8');
+    const setNames = new Set(
+      [...source.matchAll(/core\.setOutput\(\s*["']([A-Za-z0-9_]+)["']/g)].map((m) => m[1])
+    );
+
+    for (const name of declaredNames) {
+      expect(setNames, `index.js never calls core.setOutput("${name}", ...)`).toContain(name);
+    }
+  });
 });
 
 describe('readConfig', () => {
