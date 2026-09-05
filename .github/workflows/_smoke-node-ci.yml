@@ -1,0 +1,16 @@
+name: Smoke test node-ci.yml (temporary)
+
+# Not part of the fix. Exists only to drive node-ci.yml with a real
+# workflow_dispatch run so the caching change in this PR can be verified
+# against actual GitHub Actions runners instead of read by eye. Deleted
+# before merge.
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    uses: ./.github/workflows/node-ci.yml
+    with:
+      WORKING_DIRECTORY: diff
+      PACKAGE_MANAGER: yarn
