@@ -1,0 +1,57 @@
+version: 2
+
+updates:
+  # Workflow-level pins: actions/checkout, actions/setup-node,
+  # oven-sh/setup-bun in .github/workflows/*.yml.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # discord-messages is the one composite action that pins an external
+  # action directly in its own action.yml (MineBartekSA/discord-webhook),
+  # rather than only calling other actions in this repo.
+  - package-ecosystem: "github-actions"
+    directory: "/notifications/discord-messages"
+    schedule:
+      interval: "weekly"
+
+  # Every yarn-based action directory, plus the repo root's own
+  # yarn.lock. "npm" is Dependabot's ecosystem name for both npm and
+  # yarn manifests -- it reads whichever lockfile is actually there.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/ats-check"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/diff"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/format-message"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/accessibility/axe-check"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/markdown-checks/spellcheck"
+    schedule:
+      interval: "weekly"
+
+  # notifications is bun-tooled (bun.lockb), unlike every other action
+  # directory here.
+  - package-ecosystem: "bun"
+    directory: "/notifications"
+    schedule:
+      interval: "weekly"
