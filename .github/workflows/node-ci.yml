@@ -30,7 +30,7 @@ on:
         description: "Node version for actions/setup-node. Ignored when PACKAGE_MANAGER is bun, which ships its own runtime."
         required: false
         type: string
-        default: "20"
+        default: "24"
       BUN_VERSION:
         description: "Bun version for oven-sh/setup-bun. Ignored unless PACKAGE_MANAGER is bun."
         required: false
