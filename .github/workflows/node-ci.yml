@@ -65,17 +65,19 @@ jobs:
         if: inputs.PACKAGE_MANAGER != 'bun'
         id: lockfile
         run: |
-          case "${{ inputs.PACKAGE_MANAGER }}" in
+          case "$PACKAGE_MANAGER" in
             yarn) file="yarn.lock" ;;
             npm)  file="package-lock.json" ;;
           esac
           if [ -n "$file" ] && [ -f "$file" ]; then
-            echo "cache=${{ inputs.PACKAGE_MANAGER }}" >> "$GITHUB_OUTPUT"
+            echo "cache=$PACKAGE_MANAGER" >> "$GITHUB_OUTPUT"
             echo "path=$file" >> "$GITHUB_OUTPUT"
           else
             echo "cache=" >> "$GITHUB_OUTPUT"
             echo "path=" >> "$GITHUB_OUTPUT"
           fi
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
 
       - name: Set up Node
         if: inputs.PACKAGE_MANAGER != 'bun'
