@@ -70,7 +70,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          case "${{ inputs.PACKAGE_MANAGER }}" in
+          case "$PACKAGE_MANAGER" in
             yarn) yarn install --frozen-lockfile ;;
             bun)  bun install --frozen-lockfile ;;
             npm)
@@ -80,10 +80,12 @@ jobs:
               if [ -f package-lock.json ]; then npm ci; else npm install; fi
               ;;
             *)
-              echo "::error::Unknown PACKAGE_MANAGER '${{ inputs.PACKAGE_MANAGER }}' -- expected npm, yarn, or bun." >&2
+              echo "::error::Unknown PACKAGE_MANAGER '$PACKAGE_MANAGER' -- expected npm, yarn, or bun." >&2
               exit 1
               ;;
           esac
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
 
       # jq ships on the ubuntu-latest runner image already, so this needs no
       # extra install step. Checking package.json directly (rather than
@@ -106,35 +108,43 @@ jobs:
       - name: Lint
         if: steps.scripts.outputs.lint == 'true'
         run: |
-          case "${{ inputs.PACKAGE_MANAGER }}" in
+          case "$PACKAGE_MANAGER" in
             yarn) yarn lint ;;
             bun)  bun run lint ;;
             *)    npm run lint ;;
           esac
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
 
       - name: Type check
         if: steps.scripts.outputs.typecheck == 'true'
         run: |
-          case "${{ inputs.PACKAGE_MANAGER }}" in
+          case "$PACKAGE_MANAGER" in
             yarn) yarn typecheck ;;
             bun)  bun run typecheck ;;
             *)    npm run typecheck ;;
           esac
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
 
       - name: Test
         if: steps.scripts.outputs.test == 'true'
         run: |
-          case "${{ inputs.PACKAGE_MANAGER }}" in
+          case "$PACKAGE_MANAGER" in
             yarn) yarn test ;;
             bun)  bun run test ;;
             *)    npm run test ;;
           esac
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
 
       - name: Build
         if: steps.scripts.outputs.build == 'true'
         run: |
-          case "${{ inputs.PACKAGE_MANAGER }}" in
+          case "$PACKAGE_MANAGER" in
             yarn) yarn build ;;
             bun)  bun run build ;;
             *)    npm run build ;;
           esac
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
