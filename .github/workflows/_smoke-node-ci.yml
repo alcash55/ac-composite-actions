@@ -5,6 +5,7 @@ name: Smoke test node-ci.yml (temporary)
 # against actual GitHub Actions runners instead of read by eye. Deleted
 # before merge.
 on:
+  pull_request:
   workflow_dispatch:
 
 jobs:
