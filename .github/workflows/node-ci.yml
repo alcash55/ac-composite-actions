@@ -55,11 +55,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # actions/setup-node's own cache fails the step outright if
+      # cache-dependency-path doesn't resolve to a real file, and the
+      # install step above already tolerates a from-scratch npm repo with
+      # no committed package-lock.json. So detect the lockfile before
+      # turning caching on, rather than pointing setup-node at a path that
+      # might not exist.
+      - name: Detect lockfile
+        if: inputs.PACKAGE_MANAGER != 'bun'
+        id: lockfile
+        run: |
+          case "$PACKAGE_MANAGER" in
+            yarn) file="yarn.lock" ;;
+            npm)  file="package-lock.json" ;;
+          esac
+          if [ -n "$file" ] && [ -f "$file" ]; then
+            echo "cache=$PACKAGE_MANAGER" >> "$GITHUB_OUTPUT"
+            echo "path=$file" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache=" >> "$GITHUB_OUTPUT"
+            echo "path=" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
+
       - name: Set up Node
         if: inputs.PACKAGE_MANAGER != 'bun'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.NODE_VERSION }}
+          cache: ${{ steps.lockfile.outputs.cache }}
+          cache-dependency-path: ${{ inputs.WORKING_DIRECTORY }}/${{ steps.lockfile.outputs.path }}
 
       # https://bun.sh/docs/cli/install#ci-cd
       - name: Set up Bun
