@@ -53,3 +53,61 @@ jobs:
       - name: Run tests
         working-directory: ${{ matrix.dir }}
         run: ${{ matrix.pm == 'yarn' && 'yarn test' || 'bun test' }}
+
+  build-check:
+    name: build-check / ${{ matrix.dir }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # One entry per action directory with a committed dist/ bundle (see
+        # each package.json's own `build` script — @vercel/ncc under the
+        # hood). Rebuilds it from source on every PR and fails if the
+        # committed bundle has drifted, so a source change without a
+        # matching `yarn build` / `bun run build` can't ship stale code.
+        #
+        # markdown-checks/spellcheck is deliberately not here: it shells out
+        # to the cspell CLI at runtime (execSync), which a bundler can't
+        # inline — cspell and its dictionaries stay a real install regardless
+        # of what happens to this action's own thin JS glue, so there is
+        # nothing for a committed dist/ to buy it.
+        include:
+          - { dir: diff, pm: yarn }
+          - { dir: ats-check, pm: yarn }
+          - { dir: format-message, pm: yarn }
+          - { dir: accessibility/axe-check, pm: yarn }
+          - { dir: notifications, pm: bun }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ncc itself always runs under Node (its bin script has a Node
+      # shebang), regardless of which package manager a directory's own
+      # runtime scripts use.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Bun
+        if: matrix.pm == 'bun'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.1.34"
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.dir }}
+        run: ${{ matrix.pm == 'yarn' && 'yarn install --frozen-lockfile' || 'bun install --frozen-lockfile' }}
+
+      - name: Rebuild dist from source
+        working-directory: ${{ matrix.dir }}
+        run: ${{ matrix.pm == 'yarn' && 'yarn build' || 'bun run build' }}
+
+      - name: Fail if the committed dist/ has drifted
+        run: |
+          if ! git diff --quiet -- "${{ matrix.dir }}/dist"; then
+            echo "::error::${{ matrix.dir }}/dist doesn't match a fresh build. Run the build script inside ${{ matrix.dir }} and commit the result."
+            git diff --stat -- "${{ matrix.dir }}/dist"
+            exit 1
+          fi

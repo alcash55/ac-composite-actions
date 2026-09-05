@@ -511,3 +511,27 @@ listed in its matrix. A directory is added to the matrix once it has a real, pas
 (`yarn test` or `bun test`) — that's a one-line addition to the matrix `include:` list, nothing
 else in the workflow changes. Directories without a runnable test script yet are deliberately left
 out rather than wired in to fail (see the comments in `ci.yml` for which ones and why).
+
+### Bundled `dist/`
+
+`diff`, `ats-check`, `format-message`, `notifications`, and the `RESULTS_PATH` branch of
+`accessibility/axe-check` run from a committed `dist/` bundle instead of installing at invocation
+time — [`@vercel/ncc`](https://github.com/vercel/ncc) inlines each action's dependencies into one
+file, so a consumer's job never pays for a network install in its critical path. Each bundled
+action's `package.json` carries a `build` script (`yarn build` or, for `notifications`, `bun run
+build`) that regenerates `dist/` from source; `ci.yml`'s `build-check` job runs that script on
+every PR and fails if the committed bundle doesn't match a fresh one, so a source change without a
+rebuild can't ship stale code.
+
+Two carve-outs, both for concrete reasons rather than left for later:
+
+- **`accessibility/axe-check`'s self-driven mode** (`BASE_URL`/`ROUTES`, no `RESULTS_PATH`) still
+  installs and runs from source. `@vercel/ncc`'s ESM output leaves the dynamically-imported
+  `playwright` driver without a working `__dirname`, so the bundle throws on that branch
+  specifically — confirmed by running it directly, not a hypothetical. `RESULTS_PATH` (the
+  preferred path per that action's own docs) is unaffected and bundles cleanly.
+- **`markdown-checks/spellcheck`** isn't bundled at all. It shells out to the `cspell` CLI
+  (`execSync`) rather than importing it as a library, so `cspell` and its dictionaries stay a real
+  install no matter what happens to this action's own thin JS glue — there's nothing for a
+  bundle to buy here, and bundling just the glue would add a second install path for no real
+  savings.

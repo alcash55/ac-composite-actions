@@ -33,16 +33,17 @@ runs:
     - name: ATS Check
       id: ats_check
       shell: bash
+      # Runs the committed dist/index.js bundle (yarn build / @vercel/ncc) —
+      # no install step. ci.yml's build-check job rebuilds dist/ from source
+      # on every PR and fails if the committed bundle has drifted.
       run: |
-        cd ${{ github.action_path }}
         if [ -z "$RESUME_PARSER_API_KEY" ]; then
           echo "ERROR: RESUME_PARSER_API_KEY env var is empty."
           echo "Input length: ${#RESUME_PARSER_API_KEY}"
           echo "Raw input value repr: '$(echo -n "$RESUME_PARSER_API_KEY" | xxd | head -1)'"
           exit 1
         fi
-        yarn
-        yarn ats-check
+        node "${{ github.action_path }}/dist/index.js"
       env:
         RESUME: ${{ github.workspace }}/${{ inputs.RESUME }}
         RESUME_PARSER_API_KEY: ${{ inputs.APILAYER_API_KEY }}

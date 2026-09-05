@@ -304,6 +304,11 @@
   dependencies:
     undici-types "~6.21.0"
 
+"@vercel/ncc@0.45.0":
+  version "0.45.0"
+  resolved "https://registry.yarnpkg.com/@vercel/ncc/-/ncc-0.45.0.tgz#e1e2424d9eb0dbb3a8fa7067e36e0da96d42a316"
+  integrity sha512-8zPi1yO2mHpoKTD+e+Bf0ZT3e+sWHSOyGapm9s7b5R0gxJi3CiFTqmeQiMEyu6ejrz2s09M8JkEoUaTWjBJPQQ==
+
 "@vitest/expect@2.1.9":
   version "2.1.9"
   resolved "https://registry.yarnpkg.com/@vitest/expect/-/expect-2.1.9.tgz#b566ea20d58ea6578d8dc37040d6c1a47ebe5ff8"

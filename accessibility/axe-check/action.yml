@@ -51,9 +51,14 @@ outputs:
 runs:
   using: composite
   steps:
+    # RESULTS_PATH runs entirely from the committed dist/index.js bundle
+    # (yarn build / @vercel/ncc) below and never reaches this install step —
+    # only self-driven mode (no RESULTS_PATH) still needs it. See the check
+    # step for why self-driven mode can't be bundled the same way.
     - name: Install dependencies
       id: install
       shell: bash
+      if: ${{ inputs.RESULTS_PATH == '' }}
       run: |
         cd ${{ github.action_path }}
         yarn install --frozen-lockfile --production --non-interactive
@@ -79,9 +84,19 @@ runs:
     - name: ♿ Axe Accessibility Check
       id: axe_check
       shell: bash
+      # RESULTS_PATH runs the committed bundle, no install required. Self-
+      # driven mode still runs from source: ncc's ESM output leaves the
+      # dynamically-imported `playwright` driver without a working
+      # `__dirname`, so the bundle throws on that branch specifically
+      # (confirmed by running it directly) even though it's byte-identical
+      # to source for RESULTS_PATH. ci.yml's build-check job rebuilds dist/
+      # from source on every PR and fails if it has drifted.
       run: |
-        cd ${{ github.action_path }}
-        yarn check
+        if [ -n "$RESULTS_PATH" ]; then
+          node "${{ github.action_path }}/dist/index.js"
+        else
+          node "${{ github.action_path }}/index.js"
+        fi
       env:
         RESULTS_PATH: ${{ inputs.RESULTS_PATH }}
         ROUTES: ${{ inputs.ROUTES }}
