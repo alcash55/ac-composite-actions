@@ -35,6 +35,12 @@ on:
         default: "wcag2a,wcag2aa"
   workflow_dispatch:
 
+# A superseded run has nothing worth finishing here either — same reasoning
+# as node-ci.yml's own concurrency block.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 # This workflow only reads the repo (checkout, and RESULTS_PATH when set) —
 # no write permission is needed.
 permissions:
