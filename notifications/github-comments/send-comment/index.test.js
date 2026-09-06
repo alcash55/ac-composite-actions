@@ -1,7 +1,14 @@
 import { describe, it, expect, mock, beforeEach } from 'bun:test';
 
+// Bun's mock.module() only fully takes effect for a module specifier the
+// first time it's mocked in the process; on Bun < 1.2 (CI pins 1.1.34), a
+// consumer file loaded after this one keeps this shape for '@actions/core'
+// regardless of what it mocks itself. delete-comment/index.js calls
+// core.info(), so every file mocking this module needs that method too,
+// or whichever file's mock wins the race is missing it. See #21.
 const core = {
   notice: mock(() => {}),
+  info: mock(() => {}),
   setFailed: mock(() => {}),
 };
 
