@@ -61,7 +61,7 @@ jobs:
         working-directory: ${{ inputs.WORKING_DIRECTORY }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # actions/setup-node's own cache fails the step outright if
       # cache-dependency-path doesn't resolve to a real file, and the
