@@ -12,6 +12,10 @@ on:
         required: false
         type: string
 
+# This workflow never checks out the repo and never calls the GitHub API —
+# it only posts to a Discord webhook — so it needs no token scope at all.
+permissions: {}
+
 jobs:
   send-message:
     runs-on: ubuntu-latest

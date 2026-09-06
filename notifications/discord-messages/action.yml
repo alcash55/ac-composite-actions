@@ -19,7 +19,7 @@ runs:
   using: "composite"
   steps:
     - name: Send a basic message
-      uses: MineBartekSA/discord-webhook@v2
+      uses: MineBartekSA/discord-webhook@c9d90dcd484776f25f84354cc0438887af563575 # v2
       with:
         webhook: ${{ inputs.WEBHOOK_URL }}
         content: ${{ inputs.MESSAGE }}
