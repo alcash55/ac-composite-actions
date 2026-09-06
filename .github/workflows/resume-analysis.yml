@@ -41,7 +41,7 @@ jobs:
       # now prefers reading changed files from disk over the GitHub API — both
       # need the calling repo checked out first, which this workflow never did.
       - name: 📂 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.BRANCH }}
 
