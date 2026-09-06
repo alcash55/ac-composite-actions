@@ -8,7 +8,7 @@ on:
       WEBHOOK_URL:
         required: true
         type: string
-      avatar_url:
+      AVATAR_URL:
         required: false
         type: string
 
@@ -23,6 +23,6 @@ jobs:
       - name: 📩 Send Discord Message
         uses: alcash55/ac-composite-actions/notifications/discord-messages@main
         with:
-          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          WEBHOOK_URL: ${{ inputs.WEBHOOK_URL }}
           MESSAGE: ${{ inputs.MESSAGE }}
           AVATAR_URL: ${{ inputs.AVATAR_URL }}
