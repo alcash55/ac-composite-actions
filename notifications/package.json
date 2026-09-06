@@ -7,6 +7,7 @@
   "scripts": {
     "sendGithubMessage": "bun run github-comments/send-comment/index.js",
     "deleteGithubMessage": "bun run github-comments/delete-comment/index.js",
+    "build": "ncc build github-comments/send-comment/index.js -o dist/send-comment && ncc build github-comments/delete-comment/index.js -o dist/delete-comment",
     "test": "bun test"
   },
   "repository": {
@@ -23,6 +24,7 @@
     "@octokit/rest": "^21.0.0"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.6"
+    "@types/bun": "^1.1.6",
+    "@vercel/ncc": "0.45.0"
   }
 }

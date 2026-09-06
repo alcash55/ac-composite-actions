@@ -28,10 +28,11 @@ runs:
       id: delete_pr_msg
       shell: bash
       if: ${{ inputs.MESSAGE_TYPE == 'github' }}
+      # Runs the committed dist/delete-comment/index.js bundle (bun run build
+      # / @vercel/ncc) — no install step. ci.yml's build-check job rebuilds
+      # dist/ from source on every PR and fails if it has drifted.
       run: |
-        cd ${{ github.action_path }}
-        bun install --frozen-lockfile --production
-        bun run deleteGithubMessage
+        bun run "${{ github.action_path }}/dist/delete-comment/index.js"
       env:
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         PR_NUMBER: ${{ inputs.PR_NUMBER }}
@@ -44,9 +45,7 @@ runs:
       # posting an empty comment would just be noise on the PR.
       if: ${{ inputs.MESSAGE_TYPE == 'github' && inputs.MESSAGE != '' }}
       run: |
-        cd ${{ github.action_path }}
-        bun install --frozen-lockfile --production
-        bun run sendGithubMessage
+        bun run "${{ github.action_path }}/dist/send-comment/index.js"
       env:
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         PR_NUMBER: ${{ inputs.PR_NUMBER }}

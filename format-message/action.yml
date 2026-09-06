@@ -17,9 +17,10 @@ runs:
     - name: 🔨 Format Notification
       shell: bash
       id: format_msg
+      # Runs the committed dist/index.js bundle (yarn build / @vercel/ncc) —
+      # no install step. ci.yml's build-check job rebuilds dist/ from source
+      # on every PR and fails if the committed bundle has drifted.
       run: |
-        cd ${{ github.action_path }}
-        yarn install --frozen-lockfile --production --non-interactive
-        yarn format
+        node "${{ github.action_path }}/dist/index.js"
       env:
         SPELL_MESSAGE: ${{ inputs.SPELL_MESSAGE }}

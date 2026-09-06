@@ -149,7 +149,19 @@ core.info("Log message");
 core.setFailed("Something went wrong"); // exits with failure code
 ```
 
-Run `yarn` inside the action directory before calling the script in the step.
+If the action's dependency graph is fully self-contained (no CLI subprocess like `cspell`, no
+runtime asset lookup like `playwright`'s driver), commit a `dist/index.js` built with
+[`@vercel/ncc`](https://github.com/vercel/ncc) (`"build": "ncc build index.js -o dist"` in
+`package.json`) and point the step at `node ${{ github.action_path }}/dist/index.js` — no install
+step needed. Add the directory to `ci.yml`'s `build-check` matrix so a source change without a
+rebuild fails CI instead of shipping stale code.
+
+If it isn't self-contained (shells out to a CLI, or a dependency does its own `__dirname`-relative
+asset lookup), a bundle either can't remove the install step or breaks at runtime — verify by
+actually running the bundle, not by assuming `ncc build` succeeding means it works. Keep
+`yarn install --frozen-lockfile --production --non-interactive` for that action and say why in a
+comment, the way `accessibility/axe-check/action.yml` and `markdown-checks/spellcheck/action.yml`
+do.
 
 ---
 
