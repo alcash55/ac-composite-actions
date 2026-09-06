@@ -6,6 +6,13 @@ name: CI
 on:
   pull_request:
 
+# A PR check, not a deploy — the run superseded by a newer push has nothing
+# left worth finishing, so cancel it instead of queuing behind it. Without
+# this, three pushes to the same PR queue three full six-job matrix runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -36,7 +43,7 @@ jobs:
         if: matrix.pm == 'yarn'
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
           cache-dependency-path: ${{ matrix.dir }}/yarn.lock
 

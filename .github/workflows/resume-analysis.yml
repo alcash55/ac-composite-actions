@@ -25,6 +25,14 @@ on:
       APILAYER_API_KEY:
         description: API key for the APILayer Resume Parser
         required: true
+
+# Checkout is the only step here that draws on the ambient GITHUB_TOKEN.
+# Every GitHub API call this workflow makes (the diff, the PR comment, the
+# failure notice) goes through the explicitly-passed secrets.GH_TOKEN input
+# instead, so no elevated scope is needed for those.
+permissions:
+  contents: read
+
 jobs:
   analysis:
     runs-on: ubuntu-latest
