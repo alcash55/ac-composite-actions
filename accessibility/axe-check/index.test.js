@@ -84,6 +84,23 @@ describe('action.yml <-> index.js output contract', () => {
   });
 });
 
+// --- The entry-point contract: the step that sets AXE_VIOLATIONS must
+// actually run this file. Yarn Classic reserves "check" as a built-in
+// (its own package.json/yarn.lock integrity checker), which shadowed the
+// same-named package.json script and meant `yarn check` ran yarn's own
+// checker instead of index.js on every invocation since the action's first
+// commit — this is exactly what would have caught it. ---
+describe('action.yml run step invokes the entry point', () => {
+  it('the step that produces AXE_VIOLATIONS calls node index.js directly', () => {
+    const doc = parse(readFileSync(new URL('./action.yml', import.meta.url), 'utf-8'));
+    const stepId = doc.outputs.AXE_VIOLATIONS.value.match(/steps\.([\w-]+)\.outputs/)[1];
+    const step = doc.runs.steps.find((s) => s.id === stepId);
+
+    expect(step, `no step with id "${stepId}" found in action.yml`).toBeTruthy();
+    expect(step.run).toMatch(/\bnode\s+index\.js\b/);
+  });
+});
+
 describe('readConfig', () => {
   it('accepts RESULTS_PATH alone', () => {
     const config = readConfig({ RESULTS_PATH: 'axe-results.json' });
