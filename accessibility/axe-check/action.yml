@@ -83,7 +83,7 @@ runs:
       # name. Yarn Classic treats "check" as a reserved built-in (its own
       # package.json/yarn.lock integrity checker) that shadows any
       # same-named script, so `yarn check` never ran this action's logic at
-      # all — it silently ran yarn's own checker instead, which then failed
+      # all. It silently ran yarn's own checker instead, which then failed
       # on every devDependency the --production install above intentionally
       # skips. Skipping yarn here removes the whole class of "yarn reserved
       # that word" collisions, not just this one.
