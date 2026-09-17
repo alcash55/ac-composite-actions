@@ -5,6 +5,7 @@ updates:
   # oven-sh/setup-bun in .github/workflows/*.yml.
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
@@ -13,6 +14,7 @@ updates:
   # rather than only calling other actions in this repo.
   - package-ecosystem: "github-actions"
     directory: "/notifications/discord-messages"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
@@ -21,31 +23,37 @@ updates:
   # yarn manifests -- it reads whichever lockfile is actually there.
   - package-ecosystem: "npm"
     directory: "/"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
     directory: "/ats-check"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
     directory: "/diff"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
     directory: "/format-message"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
     directory: "/accessibility/axe-check"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
     directory: "/markdown-checks/spellcheck"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
@@ -53,5 +61,6 @@ updates:
   # directory here.
   - package-ecosystem: "bun"
     directory: "/notifications"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
