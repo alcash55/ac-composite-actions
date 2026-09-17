@@ -24,12 +24,6 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Debug env
-      shell: bash
-      run: |
-        echo "RESUME_PARSER_API_KEY is set: ${{ inputs.APILAYER_API_KEY != '' }}"
-        echo "RESUME input: ${{ inputs.RESUME }}"
-
     - name: ATS Check
       id: ats_check
       shell: bash

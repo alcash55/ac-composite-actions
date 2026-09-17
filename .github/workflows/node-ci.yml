@@ -30,12 +30,20 @@ on:
         description: "Node version for actions/setup-node. Ignored when PACKAGE_MANAGER is bun, which ships its own runtime."
         required: false
         type: string
-        default: "20"
+        default: "24"
       BUN_VERSION:
         description: "Bun version for oven-sh/setup-bun. Ignored unless PACKAGE_MANAGER is bun."
         required: false
         type: string
         default: "1.1.34"
+
+# This pipeline never deploys, so a run superseded by a newer push on the
+# same branch has nothing worth finishing — cancel it rather than queuing
+# behind it. Every caller pays this cost independently, since each is its
+# own concurrency group scoped to its own repository.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 # Reusable workflows do not inherit the caller's permissions automatically --
 # they get whatever the calling job grants, capped by whatever this file asks
@@ -55,11 +63,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # actions/setup-node's own cache fails the step outright if
+      # cache-dependency-path doesn't resolve to a real file, and the
+      # install step above already tolerates a from-scratch npm repo with
+      # no committed package-lock.json. So detect the lockfile before
+      # turning caching on, rather than pointing setup-node at a path that
+      # might not exist.
+      - name: Detect lockfile
+        if: inputs.PACKAGE_MANAGER != 'bun'
+        id: lockfile
+        run: |
+          case "$PACKAGE_MANAGER" in
+            yarn) file="yarn.lock" ;;
+            npm)  file="package-lock.json" ;;
+          esac
+          if [ -n "$file" ] && [ -f "$file" ]; then
+            echo "cache=$PACKAGE_MANAGER" >> "$GITHUB_OUTPUT"
+            echo "path=$file" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache=" >> "$GITHUB_OUTPUT"
+            echo "path=" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
+
       - name: Set up Node
         if: inputs.PACKAGE_MANAGER != 'bun'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.NODE_VERSION }}
+          cache: ${{ steps.lockfile.outputs.cache }}
+          cache-dependency-path: ${{ inputs.WORKING_DIRECTORY }}/${{ steps.lockfile.outputs.path }}
 
       # https://bun.sh/docs/cli/install#ci-cd
       - name: Set up Bun
@@ -70,7 +104,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          case "${{ inputs.PACKAGE_MANAGER }}" in
+          case "$PACKAGE_MANAGER" in
             yarn) yarn install --frozen-lockfile ;;
             bun)  bun install --frozen-lockfile ;;
             npm)
@@ -80,10 +114,12 @@ jobs:
               if [ -f package-lock.json ]; then npm ci; else npm install; fi
               ;;
             *)
-              echo "::error::Unknown PACKAGE_MANAGER '${{ inputs.PACKAGE_MANAGER }}' -- expected npm, yarn, or bun." >&2
+              echo "::error::Unknown PACKAGE_MANAGER '$PACKAGE_MANAGER' -- expected npm, yarn, or bun." >&2
               exit 1
               ;;
           esac
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
 
       # jq ships on the ubuntu-latest runner image already, so this needs no
       # extra install step. Checking package.json directly (rather than
@@ -106,35 +142,43 @@ jobs:
       - name: Lint
         if: steps.scripts.outputs.lint == 'true'
         run: |
-          case "${{ inputs.PACKAGE_MANAGER }}" in
+          case "$PACKAGE_MANAGER" in
             yarn) yarn lint ;;
             bun)  bun run lint ;;
             *)    npm run lint ;;
           esac
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
 
       - name: Type check
         if: steps.scripts.outputs.typecheck == 'true'
         run: |
-          case "${{ inputs.PACKAGE_MANAGER }}" in
+          case "$PACKAGE_MANAGER" in
             yarn) yarn typecheck ;;
             bun)  bun run typecheck ;;
             *)    npm run typecheck ;;
           esac
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
 
       - name: Test
         if: steps.scripts.outputs.test == 'true'
         run: |
-          case "${{ inputs.PACKAGE_MANAGER }}" in
+          case "$PACKAGE_MANAGER" in
             yarn) yarn test ;;
             bun)  bun run test ;;
             *)    npm run test ;;
           esac
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}
 
       - name: Build
         if: steps.scripts.outputs.build == 'true'
         run: |
-          case "${{ inputs.PACKAGE_MANAGER }}" in
+          case "$PACKAGE_MANAGER" in
             yarn) yarn build ;;
             bun)  bun run build ;;
             *)    npm run build ;;
           esac
+        env:
+          PACKAGE_MANAGER: ${{ inputs.PACKAGE_MANAGER }}

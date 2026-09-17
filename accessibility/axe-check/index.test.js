@@ -19,8 +19,12 @@ const mockAnalyze = vi.fn();
 const mockPage = {
   goto: vi.fn(),
 };
-const mockBrowser = {
+const mockContext = {
   newPage: vi.fn(() => mockPage),
+  close: vi.fn(),
+};
+const mockBrowser = {
+  newContext: vi.fn(() => mockContext),
   close: vi.fn(),
 };
 vi.mock('playwright', () => ({
@@ -75,12 +79,31 @@ describe('action.yml <-> index.js output contract', () => {
       return match[1];
     });
 
+    expect(declaredNames).not.toHaveLength(0);
+
     setOutputs([{ route: '/', violations: [] }]);
     const setNames = core.setOutput.mock.calls.map(([name]) => name);
 
     for (const name of declaredNames) {
       expect(setNames).toContain(name);
     }
+  });
+});
+
+// --- The entry-point contract: the step that sets AXE_VIOLATIONS must
+// actually run this file. Yarn Classic reserves "check" as a built-in
+// (its own package.json/yarn.lock integrity checker), which shadowed the
+// same-named package.json script and meant `yarn check` ran yarn's own
+// checker instead of index.js on every invocation since the action's first
+// commit — this is exactly what would have caught it. ---
+describe('action.yml run step invokes the entry point', () => {
+  it('the step that produces AXE_VIOLATIONS calls node index.js directly', () => {
+    const doc = parse(readFileSync(new URL('./action.yml', import.meta.url), 'utf-8'));
+    const stepId = doc.outputs.AXE_VIOLATIONS.value.match(/steps\.([\w-]+)\.outputs/)[1];
+    const step = doc.runs.steps.find((s) => s.id === stepId);
+
+    expect(step, `no step with id "${stepId}" found in action.yml`).toBeTruthy();
+    expect(step.run).toMatch(/\bnode\s+index\.js\b/);
   });
 });
 
@@ -165,12 +188,25 @@ describe('runAxeSelfDriven', () => {
     ]);
   });
 
-  it('closes the browser even when a route throws', async () => {
+  // A dedicated context per route, not one page shared for the whole run.
+  // See the comment on runAxeSelfDriven itself for why browser.newPage()
+  // does not work here.
+  it('opens a fresh context per route and closes each one', async () => {
+    mockAnalyze.mockResolvedValue({ violations: [] });
+
+    await runAxeSelfDriven('https://example.com', ['/', '/about'], ['wcag2a']);
+
+    expect(mockBrowser.newContext).toHaveBeenCalledTimes(2);
+    expect(mockContext.close).toHaveBeenCalledTimes(2);
+  });
+
+  it('closes the context and the browser even when a route throws', async () => {
     mockPage.goto.mockRejectedValueOnce(new Error('navigation timeout'));
 
     await expect(runAxeSelfDriven('https://example.com', ['/'], ['wcag2a'])).rejects.toThrow(
       'navigation timeout'
     );
+    expect(mockContext.close).toHaveBeenCalledOnce();
     expect(mockBrowser.close).toHaveBeenCalledOnce();
   });
 });
