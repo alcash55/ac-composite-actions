@@ -93,13 +93,26 @@ export async function runAxeSelfDriven(baseUrl, routes, tags) {
   const browser = await chromium.launch();
 
   try {
-    const page = await browser.newPage();
     const entries = [];
 
     for (const route of routes) {
-      await page.goto(new URL(route, baseUrl).toString(), { waitUntil: "networkidle" });
-      const results = await new AxeBuilder({ page }).withTags(tags).analyze();
-      entries.push({ route, violations: results.violations });
+      // A dedicated context per route, not the single page browser.newPage()
+      // hands back. @axe-core/playwright's analyze() opens its own blank
+      // page via page.context().newPage() to collect results, and Playwright
+      // refuses that call on the implicit context browser.newPage() creates
+      // ("Please use browser.newContext()"). That implicit context only
+      // allows one page. A context per route also means no route inherits
+      // cookies or storage a previous route's page set.
+      const context = await browser.newContext();
+
+      try {
+        const page = await context.newPage();
+        await page.goto(new URL(route, baseUrl).toString(), { waitUntil: "networkidle" });
+        const results = await new AxeBuilder({ page }).withTags(tags).analyze();
+        entries.push({ route, violations: results.violations });
+      } finally {
+        await context.close();
+      }
     }
 
     return entries;
