@@ -511,3 +511,52 @@ listed in its matrix. A directory is added to the matrix once it has a real, pas
 (`yarn test` or `bun test`) — that's a one-line addition to the matrix `include:` list, nothing
 else in the workflow changes. Directories without a runnable test script yet are deliberately left
 out rather than wired in to fail (see the comments in `ci.yml` for which ones and why).
+
+### Bundled `dist/`
+
+`diff`, `ats-check`, `format-message`, `notifications`, and the `RESULTS_PATH` branch of
+`accessibility/axe-check` run from a committed `dist/` bundle instead of installing at invocation
+time — [`esbuild`](https://esbuild.github.io/) inlines each action's dependencies into one file, so
+a consumer's job never pays for a network install in its critical path. Each bundled action's
+`package.json` carries a `build` script (`yarn build`, or for `notifications`, `bun run build`)
+that regenerates `dist/` from source; `ci.yml`'s `build-check` job runs that script on every PR and
+fails if the committed bundle doesn't match a fresh one, so a source change without a rebuild can't
+ship stale code.
+
+`notifications` runs its bundle under `node`, not `bun`, and no longer sets up a bun runtime at
+all: bundling inlines the real `undici` package `@actions/core` depends on, which is what let the
+`ProxyAgent`-export gap in Bun's own built-in `undici` shim (fixed at runtime in #59 by pinning bun
+to 1.1.38) happen in the first place. Once nothing in the bundle is bun-specific, there's no reason
+to run it under bun.
+
+`esbuild` over `@vercel/ncc`: ncc's default output for these actions ran past 380,000 lines because
+it inlines every dynamically-imported package it can reach, including ones an action never actually
+needs at runtime (see the `axe-check` carve-out below). `esbuild --minify` with the problem
+dependencies marked `--external` keeps the same one-file-per-action shape at roughly 500 KB and
+under 100 lines each — smaller than ncc's own `--minify` output, and every consumer of this repo
+clones the difference.
+
+esbuild's ESM output needs one fix `@vercel/ncc` didn't: a handful of these actions pull in
+CommonJS dependencies (`@actions/http-client`'s `tunnel`, for one) that call the real `require` for
+Node builtins like `net`. Plain ESM has no `require`, so each bundle's `build` script prepends a
+one-line banner that recreates it via `createRequire(import.meta.url)` — a real `require` backed by
+Node's own resolver, not a shim.
+
+Two carve-outs, both for concrete reasons rather than left for later:
+
+- **`accessibility/axe-check`'s self-driven mode** (`BASE_URL`/`ROUTES`, no `RESULTS_PATH`) still
+  installs and runs from source. It dynamically imports `playwright` and `@axe-core/playwright` to
+  drive a real browser, and a JS bundler has nothing useful to do with a browser driver package —
+  the build script marks both `--external` so the bundle never tries. `RESULTS_PATH` (the path this
+  action's own docs already recommend) never reaches that import at all, so it bundles cleanly and
+  needs no install of its own.
+- **`markdown-checks/spellcheck` isn't bundled at all.** It shells out to the `cspell` CLI
+  (`execSync`) rather than importing it as a library, so `cspell` and its dictionaries stay a real
+  install no matter what happens to this action's own thin JS glue (`@actions/core`,
+  `@octokit/rest`) — there's nothing for a bundle to buy here, and bundling just the glue would add
+  a second install path for no real savings, since `cspell` is the expensive part and is needed on
+  every real invocation regardless of mode.
+
+`notifications/discord-messages` needed no changes: it already delegates the whole send to a
+pinned third-party action (`MineBartekSA/discord-webhook`) rather than running its own script, so
+it never had an install step to remove.

@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "build": "esbuild index.js --bundle --platform=node --target=node18 --format=esm --minify --external:playwright --external:@axe-core/playwright --banner:js=\"import { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);\" --outfile=dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
+    "esbuild": "0.25.0",
     "vitest": "^2.1.9",
     "yaml": "^2.5.0"
   }

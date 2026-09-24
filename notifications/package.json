@@ -7,6 +7,7 @@
   "scripts": {
     "sendGithubMessage": "bun run github-comments/send-comment/index.js",
     "deleteGithubMessage": "bun run github-comments/delete-comment/index.js",
+    "build": "esbuild github-comments/send-comment/index.js --bundle --platform=node --target=node18 --format=esm --minify --banner:js=\"import { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);\" --outfile=dist/send-comment/index.js && esbuild github-comments/delete-comment/index.js --bundle --platform=node --target=node18 --format=esm --minify --banner:js=\"import { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);\" --outfile=dist/delete-comment/index.js",
     "test": "bun test"
   },
   "repository": {
@@ -23,6 +24,7 @@
     "@octokit/rest": "^22.0.1"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.6"
+    "@types/bun": "^1.1.6",
+    "esbuild": "0.25.0"
   }
 }
