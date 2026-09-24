@@ -24,6 +24,21 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # The two GitHub steps below shell out to bun, and this action is
+    # consumed at @main with no tag, so a caller-side bun setup would leave
+    # every other caller broken the moment this file changes (see #59).
+    # Scoped to MESSAGE_TYPE == 'github' so a discord-only caller doesn't
+    # pay for a runtime it never uses. Version pinned to match ci.yml /
+    # node-ci.yml so the lockfile behaves the same here as in CI. Safe to
+    # run even when the caller already set up bun: setup-bun just
+    # reinstalls and re-prepends PATH, a no-op when the version matches and
+    # a harmless few extra seconds when it doesn't.
+    - name: Setup Bun
+      if: ${{ inputs.MESSAGE_TYPE == 'github' }}
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: "1.1.34"
+
     - name: Delete Old GitHub Pull Request Comment (if exists)
       id: delete_pr_msg
       shell: bash
