@@ -1,0 +1,49 @@
+name: Proof issue 59 (throwaway, delete after use)
+
+# Exists only to prove the notifications/action.yml fix for #59 on a real
+# run, with no bun setup of its own. Deleted before this branch merges.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Simulates a caller that already set up its own bun, to prove the
+      # composite action's own Setup Bun step is harmless on top of it.
+      - name: Pre-existing Bun setup (simulated caller)
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.1.34"
+
+      - name: Send Pull Request Comment
+        uses: ./notifications
+        with:
+          MESSAGE_TYPE: github
+          MESSAGE: |
+            # Markdown Checks
+
+            Issue #59 proof run 1 of 2: the notifications action installs its own bun now. No bun setup step exists in this workflow.
+          GITHUB_ORG: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify Step Errors
+        if: always()
+        uses: ./notifications
+        with:
+          MESSAGE_TYPE: github
+          MESSAGE: |
+            # Markdown Checks
+
+            Issue #59 proof run 2 of 2: this call deletes the first proof comment and posts this one, so both the delete and send bun steps ran twice across the two calls above.
+          GITHUB_ORG: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
