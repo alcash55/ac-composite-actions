@@ -9,9 +9,16 @@ updates:
     schedule:
       interval: "weekly"
 
-  # discord-messages is the one composite action that pins an external
-  # action directly in its own action.yml (MineBartekSA/discord-webhook),
-  # rather than only calling other actions in this repo.
+  # notifications and notifications/discord-messages each pin an external
+  # action directly in their own action.yml (oven-sh/setup-bun,
+  # MineBartekSA/discord-webhook), rather than only calling other actions
+  # in this repo, so each needs its own entry to get version bumps.
+  - package-ecosystem: "github-actions"
+    directory: "/notifications"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+
   - package-ecosystem: "github-actions"
     directory: "/notifications/discord-messages"
     target-branch: "dev"

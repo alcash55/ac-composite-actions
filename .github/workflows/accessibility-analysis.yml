@@ -37,8 +37,16 @@ on:
 
 # A superseded run has nothing worth finishing here either — same reasoning
 # as node-ci.yml's own concurrency block.
+#
+# Same reusable-workflow gotcha as node-ci.yml (issue #68): github.workflow
+# resolves to the CALLER's name in here, not this file's, so an unprefixed
+# group can collide with a caller's own top-level concurrency group and get
+# cancelled before it creates a check run. The literal `accessibility-
+# analysis-` prefix keeps this group distinct from anything a caller could
+# name itself. This workflow has no WORKING_DIRECTORY input, so issue #50's
+# per-workspace collision does not apply here.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: accessibility-analysis-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 # This workflow only reads the repo (checkout, and RESULTS_PATH when set) —
