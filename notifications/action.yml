@@ -24,37 +24,28 @@ inputs:
 runs:
   using: "composite"
   steps:
-    # The two GitHub steps below shell out to bun, and this action is
-    # consumed at @main with no tag, so a caller-side bun setup would leave
-    # every other caller broken the moment this file changes (see #59).
-    # Scoped to MESSAGE_TYPE == 'github' so a discord-only caller doesn't
-    # pay for a runtime it never uses. Safe to run even when the caller
-    # already set up bun: setup-bun just reinstalls and re-prepends PATH, a
-    # no-op when the version matches and a harmless few extra seconds when
-    # it doesn't.
+    # Both GitHub steps run the committed dist/ bundle (bun run build /
+    # esbuild) under node, not bun — no install step, and no Setup Bun step
+    # either (closes #75, where a caller-side bun setup leaked its version
+    # into every later step's PATH).
     #
-    # ci.yml / node-ci.yml pin 1.1.34, but that version can't actually run
-    # these scripts: @actions/core pulls in @actions/http-client@4, which
-    # imports ProxyAgent from undici, and Bun's built-in undici shim doesn't
-    # export it until 1.1.38 (oven-sh/bun#4474). Their `bun test` job never
-    # hits this because the test suite mocks Octokit instead of importing
-    # the real package, so it stayed invisible there. Pinned one minor
-    # ahead of that floor, confirmed against this lockfile with both
-    # `bun install --frozen-lockfile --production` and a real script run.
-    - name: Setup Bun
-      if: ${{ inputs.MESSAGE_TYPE == 'github' }}
-      uses: oven-sh/setup-bun@v2
-      with:
-        bun-version: "1.1.38"
-
+    # #59 pinned bun to 1.1.38 at runtime because @actions/core pulls in
+    # @actions/http-client@4, which imports ProxyAgent from undici, and
+    # Bun's own built-in undici shim doesn't export it until 1.1.38
+    # (oven-sh/bun#4474). Bundling sidesteps that gap rather than working
+    # around it: esbuild inlines the real undici package these scripts
+    # actually depend on (@actions/http-client's own dependency, not Bun's
+    # substitute), so the shim Bun would otherwise substitute never enters
+    # the picture. Confirmed the bundle loads cleanly under bun 1.1.34 too,
+    # but there's no reason to run it under bun at all once nothing here is
+    # bun-specific — every other bundled action in this repo already runs
+    # its dist/ under node.
     - name: Delete Old GitHub Pull Request Comment (if exists)
       id: delete_pr_msg
       shell: bash
       if: ${{ inputs.MESSAGE_TYPE == 'github' }}
       run: |
-        cd ${{ github.action_path }}
-        bun install --frozen-lockfile --production
-        bun run deleteGithubMessage
+        node "${{ github.action_path }}/dist/delete-comment/index.js"
       env:
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         PR_NUMBER: ${{ inputs.PR_NUMBER }}
@@ -67,9 +58,7 @@ runs:
       # posting an empty comment would just be noise on the PR.
       if: ${{ inputs.MESSAGE_TYPE == 'github' && inputs.MESSAGE != '' }}
       run: |
-        cd ${{ github.action_path }}
-        bun install --frozen-lockfile --production
-        bun run sendGithubMessage
+        node "${{ github.action_path }}/dist/send-comment/index.js"
       env:
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         PR_NUMBER: ${{ inputs.PR_NUMBER }}
