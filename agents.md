@@ -149,7 +149,32 @@ core.info("Log message");
 core.setFailed("Something went wrong"); // exits with failure code
 ```
 
-Run `yarn` inside the action directory before calling the script in the step.
+If the action's dependency graph is fully self-contained (no CLI subprocess like `cspell`, no
+runtime asset lookup like a browser driver), commit a `dist/index.js` built with
+[`esbuild`](https://esbuild.github.io/) (`"build": "esbuild index.js --bundle --platform=node
+--target=node18 --format=esm --minify --outfile=dist/index.js"` in `package.json`) and point the
+step at `node ${{ github.action_path }}/dist/index.js` — no install step needed. Add the directory
+to `ci.yml`'s `build-check` matrix so a source change without a rebuild fails CI instead of shipping
+stale code.
+
+If a CommonJS dependency in the graph calls the real `require` for a Node builtin (`tunnel`,
+pulled in by `@actions/http-client`, is the one that's bitten this repo), add
+`--banner:js="import { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);"`
+to the build script — plain ESM has no `require` of its own, and this recreates a real one instead
+of leaving a bundler-generated stub that throws at runtime.
+
+If a dependency is dynamically imported specifically so requiring the module never pays for loading
+it (a browser driver behind a feature flag, say), mark it `--external` in the build script rather
+than letting the bundler inline it. Verify by actually running the bundle on both the path that
+should stay install-free and the path that still needs the external package, not by assuming a
+clean `esbuild` exit means both work — `accessibility/axe-check/action.yml` and
+`markdown-checks/spellcheck/action.yml` show the pattern for keeping
+`yarn install --frozen-lockfile --production --non-interactive` on the branch that still needs it,
+with a comment saying why.
+
+If the action isn't self-contained at all — it shells out to a CLI the bundle can't inline, cspell
+being the example here — a bundle can't remove the install step. Keep the install and say why in a
+comment, the way `markdown-checks/spellcheck/action.yml` does.
 
 ---
 

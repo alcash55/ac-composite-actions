@@ -41,8 +41,23 @@ on:
 # same branch has nothing worth finishing — cancel it rather than queuing
 # behind it. Every caller pays this cost independently, since each is its
 # own concurrency group scoped to its own repository.
+#
+# Inside a reusable workflow, github.workflow resolves to the CALLER's
+# workflow name, not this file's. A caller whose own top-level workflow
+# declares the identical group (name-prnum) asks for a group it already
+# holds, and GitHub cancels the reusable call before it ever creates a
+# check run (issue #68). The literal `node-ci-` prefix keeps this group
+# distinct from anything a caller's own workflow could name itself.
+#
+# A caller can also invoke this workflow more than once for the same PR,
+# one call per workspace (Little-Town's ci.yml calls it once for backend
+# and once for frontend). Without WORKING_DIRECTORY in the key, both
+# calls land in the same group and cancel-in-progress kills whichever
+# started first, independent of which workspace it was building
+# (issue #50). Folding WORKING_DIRECTORY in gives each per-workspace
+# invocation its own group.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: node-ci-${{ github.workflow }}-${{ inputs.WORKING_DIRECTORY }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 # Reusable workflows do not inherit the caller's permissions automatically --
