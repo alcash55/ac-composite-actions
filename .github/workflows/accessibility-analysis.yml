@@ -33,6 +33,13 @@ on:
         required: false
         type: string
         default: "wcag2a,wcag2aa"
+      COMMENT_ON_PR:
+        description: >
+          Post the violations as a PR comment, updated in place on later runs
+          and removed when clean. Needs `pull-requests: write` in the caller.
+        required: false
+        type: boolean
+        default: true
   workflow_dispatch:
 
 # A superseded run has nothing worth finishing here either — same reasoning
@@ -49,10 +56,13 @@ concurrency:
   group: accessibility-analysis-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# This workflow only reads the repo (checkout, and RESULTS_PATH when set) —
-# no write permission is needed.
-permissions:
-  contents: read
+# No `permissions:` block on purpose. The axe-check step comments on the PR,
+# which needs `pull-requests: write`. A reusable workflow cannot ask for more
+# than its caller grants (GitHub fails the run at startup), so declaring it
+# here would break every existing caller that only grants `contents: read`.
+# With no block the job inherits the caller's token: a caller that grants
+# `pull-requests: write` gets the comment, one that does not gets a warning
+# and an unchanged check.
 
 jobs:
   accessibility:
@@ -69,6 +79,7 @@ jobs:
           ROUTES: ${{ inputs.ROUTES }}
           BASE_URL: ${{ inputs.BASE_URL }}
           TAGS: ${{ inputs.TAGS }}
+          COMMENT_ON_PR: ${{ inputs.COMMENT_ON_PR }}
 
       # axe-check reports rather than fails (see its own AXE_VIOLATIONS
       # output description) so a caller that only wants the data — e.g. to

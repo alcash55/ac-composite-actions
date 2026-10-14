@@ -67,6 +67,20 @@ inputs:
       file only needs its own `words`.
     required: false
     default: ""
+  COMMENT_ON_PR:
+    description: >
+      Post the result as a pull request comment when the workflow is
+      triggered by pull_request or pull_request_target, update it in place on
+      later runs, and remove it once the check is clean. Set to "false" to
+      turn it off. Commenting never fails the check: without
+      `pull-requests: write` (or on a fork PR, which gets a read-only token)
+      the action warns and continues.
+    required: false
+    default: "true"
+  PR_NUMBER:
+    description: Pull request to comment on. Defaults to the PR that triggered the workflow.
+    required: false
+    default: ""
 outputs:
   SPELL_ERRORS:
     description: JSON array of { file, output } entries, one per file (or route, in rendered mode) with spelling issues. Always set, "[]" when there are none.
@@ -127,3 +141,18 @@ runs:
         DICTIONARY: ${{ inputs.DICTIONARY }}
         # Config lives one directory up, shared with the rest of markdown-checks.
         CSPELL_CONFIG_PATH: ${{ github.action_path }}/../.cspell.json
+
+    # Own marker (`spellcheck`), so this comment never collides with the axe or ATS
+    # comment on the same PR. Skipped when the
+    # check did not run (nothing to check) or failed.
+    - name: Comment on the pull request
+      id: comment
+      if: ${{ steps.spellcheck.outcome == 'success' }}
+      uses: alcash55/ac-composite-actions/notifications/pr-comment@main
+      with:
+        KIND: spellcheck
+        DATA: ${{ steps.spellcheck.outputs.SPELL_ERRORS }}
+        COMMENT_ON_PR: ${{ inputs.COMMENT_ON_PR }}
+        GH_TOKEN: ${{ inputs.GH_TOKEN }}
+        GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
+        PR_NUMBER: ${{ inputs.PR_NUMBER }}

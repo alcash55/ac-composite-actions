@@ -10,6 +10,8 @@ const core = {
   notice: mock(() => {}),
   info: mock(() => {}),
   setFailed: mock(() => {}),
+  warning: mock(() => {}),
+  setOutput: mock(() => {}),
 };
 
 mock.module('@actions/core', () => core);

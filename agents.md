@@ -14,6 +14,7 @@ ac-composite-actions/
 ├── markdown-checks/
 │   └── spellcheck/       # Spellcheck markdown diffs
 ├── notifications/        # Send GitHub PR comments or Discord webhooks
+│   └── pr-comment/       # Marker-based upsert of one checker comment per PR
 ├── .github/
 │   └── workflows/
 │       ├── resume-analysis.yml      # Reusable: diff + spellcheck + ATS check + notify
@@ -133,6 +134,19 @@ steps:
 ### Breaking changes
 
 This repo is consumed at `@main` by other repos — there are no versioned releases. Removing or renaming an input/output is immediately breaking. Prefer additive changes: new optional inputs with defaults, keep old outputs alongside new ones.
+
+---
+
+## PR comments from checkers
+
+A checker that has a result an author should see ends with a `notifications/pr-comment@main` step
+(see `markdown-checks/spellcheck/action.yml`). Give it a `KIND`, add a formatter to
+`notifications/github-comments/format-comment/index.js`, and add `COMMENT_ON_PR` (default
+`"true"`), `GH_TOKEN`, `GITHUB_ORG`, and `PR_NUMBER` inputs. The hidden marker comes from `KIND`, so
+two checks never overwrite each other. Do not post checker comments through `delete-comment` and
+`send-comment`: they match by heading and one check can delete another's comment. Never interpolate
+PR content into a comment without `codeSpan` or `escapeText`. Rebuild `notifications/dist` with
+`bun run build` after any change under `notifications/github-comments`.
 
 ---
 

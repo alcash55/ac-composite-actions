@@ -1,0 +1,71 @@
+name: PR comment
+description: >
+  Posts a checker action's result (spellcheck, axe, ATS) as one pull request
+  comment that later runs update in place, and removes it when the check is
+  clean. Used by the checker actions themselves; a caller rarely needs it.
+  Never fails the job: a missing permission or a fork PR becomes a warning.
+
+inputs:
+  KIND:
+    description: Which checker produced DATA, 'spellcheck', 'axe', or 'ats'. Also names the comment's hidden marker.
+    required: true
+  DATA:
+    description: >
+      The checker's output as JSON. spellcheck: SPELL_ERRORS. axe:
+      AXE_VIOLATIONS. ats: the whole ats-check outputs object
+      (toJSON(steps.<id>.outputs)). An empty string or a clean result removes
+      the old comment.
+    required: true
+  COMMENT_ON_PR:
+    description: Set to 'false' to turn commenting off.
+    required: false
+    default: "true"
+  GH_TOKEN:
+    description: Token that can write PR comments. Defaults to the job's GITHUB_TOKEN, which needs `pull-requests - write`.
+    required: false
+    default: ""
+  GITHUB_ORG:
+    description: <github owner>/<github repo>. Defaults to the repository running the workflow.
+    required: false
+    default: ""
+  PR_NUMBER:
+    description: Pull request to comment on. Defaults to the PR that triggered the workflow.
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    # Both steps run the committed notifications/dist bundles under node, with
+    # no install, like the rest of this package. They are called by path, not
+    # by `uses: .../notifications@main`: this action and the scripts always
+    # come from the same ref, so a branch that changes both stays consistent.
+    #
+    # The gate is a PR event plus the opt-out. A push or schedule run has no
+    # PR to comment on, and pull_request_target is allowed because its token
+    # can write even for fork PRs.
+    - name: Format PR comment
+      id: format
+      shell: bash
+      if: ${{ inputs.COMMENT_ON_PR == 'true' && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
+      # A formatting error must not fail the check it is reporting on.
+      continue-on-error: true
+      run: |
+        node "${{ github.action_path }}/../dist/format-comment/index.js"
+      env:
+        KIND: ${{ inputs.KIND }}
+        DATA: ${{ inputs.DATA }}
+
+    - name: Upsert PR comment
+      id: upsert
+      shell: bash
+      if: ${{ steps.format.outcome == 'success' }}
+      continue-on-error: true
+      run: |
+        node "${{ github.action_path }}/../dist/upsert-comment/index.js"
+      env:
+        GH_TOKEN: ${{ inputs.GH_TOKEN || github.token }}
+        ORG: ${{ inputs.GITHUB_ORG || github.repository }}
+        PR_NUMBER: ${{ inputs.PR_NUMBER || github.event.pull_request.number }}
+        MARKER: ${{ inputs.KIND }}
+        MESSAGE: ${{ steps.format.outputs.BODY }}
