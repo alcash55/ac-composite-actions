@@ -325,7 +325,7 @@ describe('runCspell', () => {
     runCspell('/tmp/x file.md', '/cfg/.cspell.json');
 
     expect(execSync).toHaveBeenCalledWith(
-      'cspell lint --no-exit-code --config "/cfg/.cspell.json" "/tmp/x file.md"',
+      'cspell lint --no-exit-code --show-suggestions --config "/cfg/.cspell.json" "/tmp/x file.md"',
       { encoding: 'utf-8' }
     );
   });
@@ -355,6 +355,19 @@ describe('spellCheckFile', () => {
     expect(result.file).toBe('docs/real-name.md');
     expect(result.output).toContain('docs/real-name.md:1:1');
     expect(result.output).not.toMatch(/spellcheck-tmp/);
+  });
+
+  // Real cspell prints the temp file relative to cwd, so its bare name (not the
+  // absolute path) is what shows up in the output.
+  it('also replaces the temp file name when cspell prints it without the directory', () => {
+    execSync.mockImplementation((command) => {
+      const tempName = command.match(/"[^"]*?(\.spellcheck-tmp-[^"/]+\.md)"$/)[1];
+      return `${tempName}:3:3 - Unknown word (recieve) Suggestions: [receive*, relieve]\n`;
+    });
+
+    const result = spellCheckFile('README.md', 'I recieve', '.cspell.json');
+
+    expect(result.output).toBe('README.md:3:3 - Unknown word (recieve) Suggestions: [receive*, relieve]\n');
   });
 
   // The original implementation commented out unlinkSync, so a file survived

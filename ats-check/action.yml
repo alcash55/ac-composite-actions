@@ -9,6 +9,28 @@ inputs:
   APILAYER_API_KEY:
     description: API key for the APILayer Resume Parser
     required: true
+  GH_TOKEN:
+    description: Token that can write PR comments. Defaults to the job's GITHUB_TOKEN.
+    required: false
+    default: ""
+  GITHUB_ORG:
+    description: <github owner>/<github repo> to comment on. Defaults to the repository running the workflow.
+    required: false
+    default: ""
+  PR_NUMBER:
+    description: Pull request to comment on. Defaults to the PR that triggered the workflow.
+    required: false
+    default: ""
+  COMMENT_ON_PR:
+    description: >
+      Post the result as a pull request comment when the workflow is
+      triggered by pull_request or pull_request_target, update it in place on
+      later runs, and remove it once the check is clean. Set to "false" to
+      turn it off. Commenting never fails the check: without
+      `pull-requests: write` (or on a fork PR, which gets a read-only token)
+      the action warns and continues.
+    required: false
+    default: "true"
 
 outputs:
   ATS_SCORE:
@@ -41,3 +63,18 @@ runs:
       env:
         RESUME: ${{ github.workspace }}/${{ inputs.RESUME }}
         RESUME_PARSER_API_KEY: ${{ inputs.APILAYER_API_KEY }}
+
+    # Own marker (`ats`), so this comment never collides with the spellcheck or axe
+    # comment on the same PR. A passing score still gets a comment, since the
+    # score is the result the author wants to see.
+    - name: Comment on the pull request
+      id: comment
+      if: ${{ steps.ats_check.outcome == 'success' }}
+      uses: alcash55/ac-composite-actions/notifications/pr-comment@main
+      with:
+        KIND: ats
+        DATA: ${{ toJSON(steps.ats_check.outputs) }}
+        COMMENT_ON_PR: ${{ inputs.COMMENT_ON_PR }}
+        GH_TOKEN: ${{ inputs.GH_TOKEN }}
+        GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
+        PR_NUMBER: ${{ inputs.PR_NUMBER }}

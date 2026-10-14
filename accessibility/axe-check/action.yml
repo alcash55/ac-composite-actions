@@ -37,6 +37,28 @@ inputs:
       consumer supplying RESULTS_PATH is expected to have checked against.
     required: false
     default: "wcag2a,wcag2aa"
+  GH_TOKEN:
+    description: Token that can write PR comments. Defaults to the job's GITHUB_TOKEN.
+    required: false
+    default: ""
+  GITHUB_ORG:
+    description: <github owner>/<github repo> to comment on. Defaults to the repository running the workflow.
+    required: false
+    default: ""
+  PR_NUMBER:
+    description: Pull request to comment on. Defaults to the PR that triggered the workflow.
+    required: false
+    default: ""
+  COMMENT_ON_PR:
+    description: >
+      Post the result as a pull request comment when the workflow is
+      triggered by pull_request or pull_request_target, update it in place on
+      later runs, and remove it once the check is clean. Set to "false" to
+      turn it off. Commenting never fails the check: without
+      `pull-requests: write` (or on a fork PR, which gets a read-only token)
+      the action warns and continues.
+    required: false
+    default: "true"
 
 outputs:
   AXE_VIOLATIONS:
@@ -107,3 +129,17 @@ runs:
         ROUTES: ${{ inputs.ROUTES }}
         BASE_URL: ${{ inputs.BASE_URL }}
         TAGS: ${{ inputs.TAGS }}
+
+    # Own marker (`axe`), so this comment never collides with the spellcheck or ATS
+    # comment on the same PR.
+    - name: Comment on the pull request
+      id: comment
+      if: ${{ steps.axe_check.outcome == 'success' }}
+      uses: alcash55/ac-composite-actions/notifications/pr-comment@main
+      with:
+        KIND: axe
+        DATA: ${{ steps.axe_check.outputs.AXE_VIOLATIONS }}
+        COMMENT_ON_PR: ${{ inputs.COMMENT_ON_PR }}
+        GH_TOKEN: ${{ inputs.GH_TOKEN }}
+        GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
+        PR_NUMBER: ${{ inputs.PR_NUMBER }}

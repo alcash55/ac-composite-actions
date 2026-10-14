@@ -18,6 +18,7 @@ action takes effect immediately for every repo that uses it.
 | [`markdown-checks/spellcheck`](#markdown-checksspellcheck) | ✅ Ready | Spellchecks changed markdown with cspell |
 | [`accessibility/axe-check`](#accessibilityaxe-check) | ✅ Ready | Runs @axe-core/playwright's WCAG 2 A/AA ruleset |
 | [`notifications`](#notifications) | ✅ Ready | Posts a PR comment or Discord message |
+| [`notifications/pr-comment`](#notificationspr-comment) | ✅ Ready | Upserts one PR comment per checker, found by a hidden marker |
 | [`notifications/discord-messages`](#notificationsdiscord-messages) | ✅ Ready | Sends a Discord webhook message |
 | [`format-message`](#format-message) | ✅ Ready | Formats a spellcheck result into a comment body |
 
@@ -108,6 +109,8 @@ Parses a resume PDF and scores its ATS (Applicant Tracking System) compatibility
 |---|---|---|
 | `RESUME` | ✅ | Path to the resume PDF, relative to the repo root |
 | `APILAYER_API_KEY` | ✅ | APILayer Resume Parser API key |
+| `COMMENT_ON_PR` | — | `true` by default. Posts the score, verdict, and report as a PR comment. `false` turns it off |
+| `GH_TOKEN`, `GITHUB_ORG`, `PR_NUMBER` | — | Comment target overrides, see [PR comments](#pr-comments-from-checker-actions) |
 
 ### Outputs
 
@@ -194,11 +197,13 @@ not carry any one project's proper nouns.
 | `EXTENSIONS` | — | `ts,tsx,html,md,mdx,json` | Comma delimited extensions to glob when `source` mode has no `DIFF` |
 | `BRANCH` | — | `""` | Ref to read from (`source` mode with `DIFF`) |
 | `GITHUB_ORG` | — | `""` | `<owner>/<repo>` (`source` mode with `DIFF`) |
-| `GH_TOKEN` | — | `""` | Token for the actor triggering the workflow (`source` mode with `DIFF`) |
+| `GH_TOKEN` | — | `""` | Token for the actor triggering the workflow (`source` mode with `DIFF`). Also the token for the PR comment, falling back to the job's `GITHUB_TOKEN` |
 | `ROUTES` | — | `""` | Space delimited routes to check (`rendered` mode, with `BASE_URL`) |
 | `BASE_URL` | — | `""` | Base URL of a running site (`rendered` mode, self-driven browser) |
 | `RENDERED_CONTENT_PATH` | — | `""` | Path to pre-extracted `[{ route, innerText, description, labels }]` JSON (`rendered` mode, no browser needed) |
 | `DICTIONARY` | — | `""` | Path to a consumer-owned cspell config, merged with the shared baseline via cspell's own `import` |
+| `COMMENT_ON_PR` | — | `true` | Post the result as a PR comment (see [PR comments](#pr-comments-from-checker-actions)). `false` turns it off |
+| `PR_NUMBER` | — | the triggering PR | Pull request to comment on |
 
 `DIFF`, `BRANCH`, `GITHUB_ORG`, and `GH_TOKEN` keep their original names and meaning — an existing
 caller that sets all four and nothing else sees identical behaviour to before `SPELLCHECK_MODE`
@@ -251,6 +256,10 @@ style nit like a typo.
 | `ROUTES` | — | `""` | Space delimited routes to check (self-driven mode, with `BASE_URL`) |
 | `BASE_URL` | — | `""` | Base URL of a running, reachable site (self-driven mode) |
 | `TAGS` | — | `wcag2a,wcag2aa` | Comma delimited axe rule tags for self-driven mode |
+| `GH_TOKEN` | — | the job's `GITHUB_TOKEN` | Token that can write PR comments |
+| `GITHUB_ORG` | — | the running repo | `<owner>/<repo>` to comment on |
+| `COMMENT_ON_PR` | — | `true` | Post the result as a PR comment (see [PR comments](#pr-comments-from-checker-actions)). `false` turns it off |
+| `PR_NUMBER` | — | the triggering PR | Pull request to comment on |
 
 ### Outputs
 
@@ -297,7 +306,8 @@ path — the same pattern `markdown-checks/spellcheck` uses for its own self-dri
 One entry point for both PR comments and Discord messages, switching on `MESSAGE_TYPE`. For
 `github`, it first deletes the previous run's bot comment (matched by heading — see
 `github-comments/delete-comment`), then posts `MESSAGE` as a new comment, skipping the post when
-`MESSAGE` is empty. For `discord`, it delegates to
+`MESSAGE` is empty. This path matches old comments by heading and skips comments that carry a
+hidden marker (see [PR comments](#pr-comments-from-checker-actions)). For `discord`, it delegates to
 [`notifications/discord-messages`](#notificationsdiscord-messages).
 
 ### Inputs
@@ -318,6 +328,28 @@ cd notifications
 bun install
 bun test
 ```
+
+---
+
+## `notifications/pr-comment`
+
+Turns a checker's output into one PR comment and keeps it current. `markdown-checks/spellcheck`,
+`accessibility/axe-check`, and `ats-check` call it at the end of their own run, so a caller gets
+the comment by adding nothing. Call it directly only to comment on output from your own check.
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `KIND` | ✅ | — | `spellcheck`, `axe`, or `ats`. Also names the comment's hidden marker |
+| `DATA` | ✅ | — | The checker's JSON output (`ats`: `toJSON(steps.<id>.outputs)`). Empty or clean removes the old comment |
+| `COMMENT_ON_PR` | — | `true` | `false` turns commenting off |
+| `GH_TOKEN` | — | the job's `GITHUB_TOKEN` | Token that can write PR comments |
+| `GITHUB_ORG` | — | the running repo | `<owner>/<repo>` |
+| `PR_NUMBER` | — | the triggering PR | Pull request number |
+
+It runs the committed `notifications/dist` bundles by relative path rather than through
+`uses: .../notifications@main`, so the action and its scripts always come from the same ref.
+Formatting lives in `github-comments/format-comment`, the marker upsert in
+`github-comments/upsert-comment`.
 
 ---
 
@@ -371,13 +403,57 @@ yarn test
 
 ---
 
+## PR comments from checker actions
+
+`markdown-checks/spellcheck`, `accessibility/axe-check`, and `ats-check` comment on the pull
+request on their own, so the author sees what failed without opening the run log.
+
+- **When:** only when the workflow runs on `pull_request` or `pull_request_target`, and
+  `COMMENT_ON_PR` is not `false`.
+- **What:** spellcheck lists each misspelled word with up to 3 cspell suggestions and a `file:line` link to the line at the PR head commit (plain text when the repo or commit is unknown). axe lists each rule with
+  impact, element count, help link, and the first three selectors, per route. ATS shows the score
+  once in its heading, then the breakdown and recommendations. Long lists are cut under GitHub's size limit with a "N more not shown" line.
+- **One comment per check, updated in place.** Each comment starts with a hidden marker, for example
+  `<!-- ac-composite-actions:spellcheck -->`, and a later run edits that comment rather than posting
+  another. The spellcheck and axe comments never touch each other.
+- **A clean run removes the old comment** so fixed errors do not linger. ATS always keeps its comment,
+  since a passing score is still the result. If the check did not run at all (spellcheck with no
+  changed files), the existing comment stays.
+- **It never fails the check.** A missing permission, a fork PR, or an API error becomes a
+  warning and the step goes on.
+- **Size limit:** the checker output reaches the formatter as an environment variable, and Linux caps one at 128 KB. A larger result (thousands of misspelled files) makes the format step fail with `Argument list too long`, which is tolerated: the check stays green and the comment is not updated.
+- **Permission:** the calling job needs `pull-requests: write` for the default `GITHUB_TOKEN`.
+- **Escaping:** filenames, words, and selectors come from the PR, so they go inside code spans with
+  a fence that cannot be closed early, and axe help text is escaped. Only `https` help links are kept.
+- **Old comments:** `notifications` `delete-comment` skips marked comments, so it cannot delete them
+  by a heading match.
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+```
+
+PRs from forks get a read-only `GITHUB_TOKEN` under `pull_request`, so they get the warning and no
+comment. `pull_request_target` runs with write access, so use it only if you understand what it
+exposes.
+
+The reusable workflows differ: `resume-analysis.yml` keeps its single combined spelling comment and
+turns the spellcheck comment off, and posts only the ATS comment on top. `accessibility-analysis.yml`
+comments through axe-check.
+
+---
+
 ## Reusable workflows
 
 Called with `uses:` at the job level rather than the step level.
 
 ### `resume-analysis.yml`
 
-Checks out the calling repo, then chains diff → spellcheck → ATS check → format → PR comment. On
+Checks out the calling repo, then chains diff → spellcheck → ATS check → format → PR comment. The
+combined comment carries the spelling errors, so spellcheck runs with `COMMENT_ON_PR: "false"` to
+avoid posting them twice. The combined comment works for any caller that supplies `PR_NUMBER`.
+The ATS check posts its own marked comment, which needs a `pull_request` caller. On
 any step failure, a best-effort "Notify Step Errors" step posts a `# Markdown Checks` comment
 linking to the failed run.
 
@@ -404,6 +480,11 @@ Sends a Discord webhook message. Inputs: `MESSAGE`, `WEBHOOK_URL`, `avatar_url`.
 Checks out the calling repo, runs [`accessibility/axe-check`](#accessibilityaxe-check), then fails
 the job if any route came back with a violation. See that action's own docs for the
 `RESULTS_PATH`-vs-`BASE_URL`/`ROUTES` split; this workflow forwards all four inputs unchanged.
+
+It also takes `COMMENT_ON_PR` (default `true`). The violations are posted as a PR comment, so the
+calling job needs `pull-requests: write`. This workflow declares no `permissions:` block of its own,
+because a reusable workflow that asks for more than its caller grants fails at startup. A caller
+without the permission gets a warning and no comment.
 
 ```yaml
 jobs:

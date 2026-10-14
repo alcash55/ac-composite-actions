@@ -61,6 +61,10 @@ jobs:
           GITHUB_ORG: ${{ inputs.ORG }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           BRANCH: ${{ inputs.BRANCH }}
+          # The combined comment below already carries the spelling errors,
+          # and it works for any trigger that supplies PR_NUMBER. A second
+          # per-action comment would post the same errors twice.
+          COMMENT_ON_PR: "false"
 
       - name: 🖨️ ATS Check
         id: ats_check
@@ -68,6 +72,12 @@ jobs:
         with:
           RESUME: ${{ inputs.RESUME }}
           APILAYER_API_KEY: ${{ secrets.APILAYER_API_KEY }}
+          # The combined comment has no ATS section, so ATS posts its own.
+          # It needs a PR-triggered caller; explicit values because this
+          # workflow's own token is read-only.
+          GITHUB_ORG: ${{ inputs.ORG }}
+          PR_NUMBER: ${{ inputs.PR_NUMBER }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: ✍🏽 Format Message
         id: create_msg
