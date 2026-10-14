@@ -21,6 +21,21 @@ inputs:
     description: Pull request to comment on. Defaults to the PR that triggered the workflow.
     required: false
     default: ""
+  ATS_THRESHOLD:
+    description: >
+      Minimum score (integer, 0-100) that counts as passing. Sets ATS_PASSED,
+      the comment verdict, and the report's threshold line. A failing score
+      only warns; it never fails the job.
+    required: false
+    default: "70"
+  COMMENT_KEY:
+    description: >
+      Tells this resume's PR comment apart from other ats-check runs on the
+      same pull request. Defaults to the resume's filename without its
+      extension (`resume/fullstack.pdf` owns the `ats-fullstack` comment).
+      Any text; it is slugified into the hidden marker.
+    required: false
+    default: ""
   COMMENT_ON_PR:
     description: >
       Post the result as a pull request comment when the workflow is
@@ -34,14 +49,17 @@ inputs:
 
 outputs:
   ATS_SCORE:
-    description: Overall ATS compatibility score (0-100) — 70 or above is considered passing
+    description: Overall ATS compatibility score (0-100), at or above ATS_THRESHOLD (default 70) is considered passing
     value: ${{ steps.ats_check.outputs.ATS_SCORE }}
   ATS_REPORT:
     description: Detailed ATS compatibility report as a markdown string
     value: ${{ steps.ats_check.outputs.ATS_REPORT }}
   ATS_PASSED:
-    description: Boolean — true if the score is 70 or above
+    description: Boolean, true if the score is at or above ATS_THRESHOLD
     value: ${{ steps.ats_check.outputs.ATS_PASSED }}
+  ATS_RESUME:
+    description: File name of the resume that was scored, such as fullstack.pdf
+    value: ${{ steps.ats_check.outputs.ATS_RESUME }}
 
 runs:
   using: "composite"
@@ -63,8 +81,10 @@ runs:
       env:
         RESUME: ${{ github.workspace }}/${{ inputs.RESUME }}
         RESUME_PARSER_API_KEY: ${{ inputs.APILAYER_API_KEY }}
+        ATS_THRESHOLD: ${{ inputs.ATS_THRESHOLD }}
+        COMMENT_KEY: ${{ inputs.COMMENT_KEY }}
 
-    # Own marker (`ats`), so this comment never collides with the spellcheck or axe
+    # Own marker (`ats-<resume name>`), so this comment never collides with the spellcheck or axe
     # comment on the same PR. A passing score still gets a comment, since the
     # score is the result the author wants to see.
     - name: Comment on the pull request
@@ -73,6 +93,7 @@ runs:
       uses: alcash55/ac-composite-actions/notifications/pr-comment@main
       with:
         KIND: ats
+        COMMENT_KEY: ${{ steps.ats_check.outputs.ATS_COMMENT_KEY }}
         DATA: ${{ toJSON(steps.ats_check.outputs) }}
         COMMENT_ON_PR: ${{ inputs.COMMENT_ON_PR }}
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
