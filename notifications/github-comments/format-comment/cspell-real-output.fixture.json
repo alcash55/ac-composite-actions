@@ -1,0 +1,6 @@
+[
+ {
+  "file": "README.md",
+  "output": "README.md:3:3 - Unknown word (recieve) Suggestions: [receive*, relieve, received, receiver, receives]\nREADME.md:3:27 - Unknown word (seperate) Suggestions: [separate*, septate, serrate, selenate, sewerage]\nREADME.md:3:36 - Unknown word (wrod) Suggestions: [word*, wood, Wood, prod, trod]\nREADME.md:5:9 - Unknown word (recieve) Suggestions: [receive*, relieve, received, receiver, receives]\nREADME.md:5:23 - Unknown word (definately) Suggestions: [definitely*, defiantly, definably, delicately, definable]\nREADME.md:7:18 - Unknown word (xqzvbnmkjhgfdsa) Suggestions: []\n"
+ }
+]

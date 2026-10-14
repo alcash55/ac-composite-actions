@@ -410,9 +410,9 @@ request on their own, so the author sees what failed without opening the run log
 
 - **When:** only when the workflow runs on `pull_request` or `pull_request_target`, and
   `COMMENT_ON_PR` is not `false`.
-- **What:** spellcheck lists each misspelled word and line under its file. axe lists each rule with
-  impact, element count, help link, and the first three selectors, per route. ATS shows the score,
-  verdict, and report. Long lists are cut under GitHub's size limit with a "N more not shown" line.
+- **What:** spellcheck lists each misspelled word with up to 3 cspell suggestions and a `file:line` link to the line at the PR head commit (plain text when the repo or commit is unknown). axe lists each rule with
+  impact, element count, help link, and the first three selectors, per route. ATS shows the score
+  once in its heading, then the breakdown and recommendations. Long lists are cut under GitHub's size limit with a "N more not shown" line.
 - **One comment per check, updated in place.** Each comment starts with a hidden marker, for example
   `<!-- ac-composite-actions:spellcheck -->`, and a later run edits that comment rather than posting
   another. The spellcheck and axe comments never touch each other.

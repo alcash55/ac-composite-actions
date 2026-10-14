@@ -2,7 +2,7 @@ import { execSync } from "child_process";
 import { writeFileSync, unlinkSync, existsSync, readFileSync } from "fs";
 import { randomUUID } from "crypto";
 import { tmpdir } from "os";
-import { join } from "path";
+import { basename, join } from "path";
 import { Octokit } from "@octokit/rest";
 import * as core from "@actions/core";
 
@@ -211,7 +211,7 @@ export function resolveCspellConfigPath(baseConfigPath, dictionaryPath) {
  * @returns {string} raw cspell output, empty string when clean
  */
 export function runCspell(tempFilePath, cspellConfigPath) {
-  return execSync(`cspell lint --no-exit-code --config "${cspellConfigPath}" "${tempFilePath}"`, {
+  return execSync(`cspell lint --no-exit-code --show-suggestions --config "${cspellConfigPath}" "${tempFilePath}"`, {
     encoding: "utf-8",
   });
 }
@@ -246,7 +246,12 @@ export function spellCheckFile(label, fileContent, cspellConfigPath) {
     }
 
     // Report the real path (or route), not the temp file cspell actually saw.
-    return { file: label, output: output.split(tempFilePath).join(label) };
+    // cspell prints the path relative to cwd, so the temp file usually
+    // appears as its bare name; replace the full path first, then that name.
+    return {
+      file: label,
+      output: output.split(tempFilePath).join(label).split(basename(tempFilePath)).join(label),
+    };
   } finally {
     if (existsSync(tempFilePath)) {
       unlinkSync(tempFilePath);

@@ -112,14 +112,19 @@ export function joinWithinLimit(header, blocks, noun, limit = MAX_BODY_LENGTH) {
   return lines.join('\n');
 }
 
-const CSPELL_LINE = /^.*?:(\d+):\d+\s+-\s+(?:Unknown|Forbidden) word \((.+?)\)/;
+const CSPELL_LINE = /^.*?:(\d+):\d+\s+-\s+(?:Unknown|Forbidden) word \((.+?)\)(?:\s+Suggestions: \[(.*)\])?\s*$/;
+
+const MAX_SUGGESTIONS = 3;
 
 /**
- * Pulls { word, line } pairs out of raw cspell output. cspell prints
- * `path:line:col - Unknown word (word)`; anything else (summary lines,
- * future format changes) is ignored here and handled by the caller.
+ * Pulls { word, lines, suggestions } out of raw `cspell lint --show-suggestions`
+ * output. cspell prints
+ * `path:line:col - Unknown word (word) Suggestions: [best*, second, third]`;
+ * the `*` marks its preferred fix. A word with no suggestions has no
+ * `Suggestions:` part. Anything else (summary lines, a future format change)
+ * is ignored here and handled by the caller.
  * @param {string} output
- * @returns {{ word: string, lines: number[] }[]} unique words in first-seen order
+ * @returns {{ word: string, lines: number[], suggestions: string[] }[]} unique words in first-seen order
  */
 export function parseCspellOutput(output) {
   const byWord = new Map();
@@ -129,9 +134,16 @@ export function parseCspellOutput(output) {
     if (!match) {
       continue;
     }
-    const [, line, word] = match;
-    const entry = byWord.get(word) ?? { word, lines: [] };
+    const [, line, word, rawSuggestions] = match;
+    const entry = byWord.get(word) ?? { word, lines: [], suggestions: [] };
     entry.lines.push(Number(line));
+    if (entry.suggestions.length === 0 && rawSuggestions) {
+      entry.suggestions = rawSuggestions
+        .split(',')
+        .map((suggestion) => suggestion.trim().replace(/\*$/, ''))
+        .filter(Boolean)
+        .slice(0, MAX_SUGGESTIONS);
+    }
     byWord.set(word, entry);
   }
 
@@ -146,42 +158,89 @@ function parseJson(raw, kind) {
   }
 }
 
+const REPO_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const SHA_PATTERN = /^[0-9a-f]{7,64}$/i;
+const MAX_LINKS_PER_WORD = 5;
+
+/**
+ * Builds a link to a line of a file at a commit, or null when it cannot be
+ * made safely. A filename is PR content, so each path segment is
+ * percent-encoded (including the characters encodeURIComponent leaves alone
+ * that would end a markdown link), and a path that could climb out of the
+ * blob URL or that is not a repo path (a rendered-mode route) gets no link.
+ * @param {{ repo?: string, sha?: string }} context
+ * @param {string} file - repo-relative path
+ * @param {number} line
+ * @returns {string | null}
+ */
+export function lineUrl({ repo, sha } = {}, file, line) {
+  if (!REPO_PATTERN.test(repo ?? '') || !SHA_PATTERN.test(sha ?? '')) {
+    return null;
+  }
+
+  const path = String(file ?? '');
+  const segments = path.split('/');
+  if (!path || path.startsWith('/') || segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    return null;
+  }
+
+  const encoded = segments
+    .map((segment) =>
+      encodeURIComponent(segment).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
+    )
+    .join('/');
+
+  return `https://github.com/${repo}/blob/${sha}/${encoded}#L${Number(line)}`;
+}
+
 /**
  * @param {unknown} data - SPELL_ERRORS: array of { file, output }
+ * @param {{ repo?: string, sha?: string }} [context] - where file:line links point; none means plain text
  * @returns {string} markdown, '' when there are no spelling errors
  */
-export function formatSpellcheck(data) {
+export function formatSpellcheck(data, context = {}) {
   if (!Array.isArray(data) || data.length === 0) {
     return '';
   }
 
-  const blocks = data.map(({ file, output }) => {
+  // One entry per word per file, each naming its own file and line. A flat
+  // list reads better than a heading per file, since most files have one or
+  // two typos and every entry stays self-contained when someone quotes it.
+  const blocks = [];
+  let wordCount = 0;
+
+  for (const { file, output } of data) {
     const words = parseCspellOutput(output);
 
     if (words.length === 0) {
       // Format we do not recognise: show cspell's own text rather than nothing.
-      const raw = String(output ?? '').trim().slice(0, 1000).replace(/`{3,}/g, "'''");
-      return `### ${codeSpan(file)}\n\n\`\`\`text\n${raw}\n\`\`\`\n`;
+      const raw = String(output ?? '').trim().slice(0, 1000).replace(/`{3,}/g, '` ` `');
+      blocks.push(`- ${codeSpan(file)}:\n\n\`\`\`text\n${raw}\n\`\`\`\n`);
+      continue;
     }
 
-    const items = words.map(({ word, lines }) => {
-      const shownLines = lines.slice(0, 5).join(', ');
-      const more = lines.length > 5 ? ', ...' : '';
-      return `- ${codeSpan(word, 80)} (line ${shownLines}${more})`;
-    });
-
-    return `### ${codeSpan(file)}\n\n${items.join('\n')}\n`;
-  });
+    for (const { word, lines, suggestions } of words) {
+      wordCount += 1;
+      const places = lines.slice(0, MAX_LINKS_PER_WORD).map((line) => {
+        const label = codeSpan(`${file}:${line}`);
+        const url = lineUrl(context, file, line);
+        return url ? `[${label}](${url})` : label;
+      });
+      const more = lines.length > MAX_LINKS_PER_WORD ? `, ...and ${lines.length - MAX_LINKS_PER_WORD} more` : '';
+      const fix = suggestions.length ? ` → ${suggestions.map((s) => codeSpan(s, 80)).join(', ')}` : '';
+      blocks.push(`- ${codeSpan(word, 80)}${fix}: ${places.join(', ')}${more}`);
+    }
+  }
 
   return joinWithinLimit(
     [
       '## Spelling errors',
       '',
-      `Found misspelled words in ${data.length} file(s). Fix them or add real terms to the project dictionary.`,
+      `Found ${wordCount || 'some'} misspelled word(s) in ${data.length} file(s). Fix them or add real terms to the project dictionary.`,
       '',
     ],
     blocks,
-    'file(s)'
+    'misspelling(s)'
   );
 }
 
@@ -248,7 +307,9 @@ export function formatAts(data) {
   const passed = String(data.ATS_PASSED) === 'true';
   // ats-check puts its own H1 on the report. Drop it so the comment has one
   // heading, with the verdict in it.
-  const body = report.replace(/^# .*\n+/, '');
+  // The heading above already carries the score, so drop the report's own
+  // "Overall Score" line. ats-check's log and report output keep it.
+  const body = report.replace(/^# .*\n+/, '').replace(/^\*\*Overall Score: .*\*\*\n+/m, '');
 
   return [`## ATS check: ${passed ? 'passed' : 'needs work'} (${score}/100)`, '', body]
     .join('\n')
@@ -266,9 +327,10 @@ export const KINDS = Object.keys(FORMATTERS);
 /**
  * @param {string} kind - one of {@link KINDS}
  * @param {string} rawData - the checker's JSON output
+ * @param {{ repo?: string, sha?: string }} [context] - for file:line links
  * @returns {string} comment body, '' for a clean run
  */
-export function formatComment(kind, rawData) {
+export function formatComment(kind, rawData, context = {}) {
   const formatter = FORMATTERS[kind];
 
   if (!formatter) {
@@ -279,11 +341,11 @@ export function formatComment(kind, rawData) {
     return '';
   }
 
-  return formatter(parseJson(rawData, kind));
+  return formatter(parseJson(rawData, kind), context);
 }
 
 export function run(env = process.env) {
-  const body = formatComment(env.KIND, env.DATA);
+  const body = formatComment(env.KIND, env.DATA, { repo: env.REPO, sha: env.SHA });
   core.setOutput('BODY', body);
   return body;
 }

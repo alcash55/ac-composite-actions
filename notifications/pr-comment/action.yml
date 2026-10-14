@@ -55,6 +55,10 @@ runs:
       env:
         KIND: ${{ inputs.KIND }}
         DATA: ${{ inputs.DATA }}
+        # For file:line links in the spellcheck comment: the PR head commit,
+        # or the run's commit outside a PR. Env only, never in the run string.
+        REPO: ${{ inputs.GITHUB_ORG || github.repository }}
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
     - name: Upsert PR comment
       id: upsert
