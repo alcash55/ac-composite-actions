@@ -21,6 +21,13 @@ const CURRENT_HEADINGS = [
   '# Too many errors to show full message, fix errors to show fill issue list',
 ];
 
+// Comments written by upsert-comment own their lifecycle through this marker.
+// Their text can echo PR content (a filename containing "# Spell Check"), so a
+// heading match alone must never make delete-comment remove them.
+const MANAGED_MARKER_PREFIX = '<!-- ac-composite-actions:';
+
+const isManaged = (comment) => Boolean(comment.body?.startsWith(MANAGED_MARKER_PREFIX));
+
 const LEGACY_HEADINGS = ['### **Style Errors**', '### **Bad Links**', '### **Filenames with Blanks**'];
 
 /**
@@ -84,7 +91,7 @@ export async function getAllComments(octokit, { owner, repo, prNumber }) {
 */
 export function filterComments(commentList) {
   const filteredCommentList = commentList.filter((comment) =>
-    CURRENT_HEADINGS.some((text) => comment.body?.includes(text))
+    !isManaged(comment) && CURRENT_HEADINGS.some((text) => comment.body?.includes(text))
   );
 
   if (!filteredCommentList.length) {
@@ -107,7 +114,7 @@ export function filterComments(commentList) {
 */
 export function filterLegacyComments(commentList) {
   const filteredCommentList = commentList.filter((comment) =>
-    LEGACY_HEADINGS.some((text) => comment.body?.includes(text))
+    !isManaged(comment) && LEGACY_HEADINGS.some((text) => comment.body?.includes(text))
   );
 
   if (!filteredCommentList.length) {

@@ -4,6 +4,8 @@ const core = {
   notice: mock(() => {}),
   info: mock(() => {}),
   setFailed: mock(() => {}),
+  warning: mock(() => {}),
+  setOutput: mock(() => {}),
 };
 
 mock.module('@actions/core', () => core);
@@ -97,6 +99,28 @@ describe('filterComments (the no-previous-comment path)', () => {
       expect(filterComments([{ id: 9, body: `${heading}\nbody` }])).toBe(9);
     }
   );
+});
+
+describe('comments managed by upsert-comment', () => {
+  // The clobber bug: a spelling comment that echoes a heading-like filename
+  // must not be picked up by this script's heading search and deleted.
+  const managed = {
+    id: 11,
+    body: '<!-- ac-composite-actions:spellcheck -->\n## Spelling errors\n### `# Spell Check.md`',
+  };
+
+  it('is never selected by the current-heading search', () => {
+    expect(filterComments([managed])).toBeUndefined();
+  });
+
+  it('is skipped in favour of an older unmanaged comment', () => {
+    const older = { id: 4, body: '# Spell Check\nold style' };
+    expect(filterComments([older, managed])).toBe(4);
+  });
+
+  it('is never selected by the legacy-heading search', () => {
+    expect(filterLegacyComments([{ id: 12, body: '<!-- ac-composite-actions:axe -->\n### **Bad Links**' }])).toBeUndefined();
+  });
 });
 
 describe('filterLegacyComments', () => {
