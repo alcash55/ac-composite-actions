@@ -360,8 +360,8 @@ the comment by adding nothing. Call it directly only to comment on output from y
 
 | Input | Required | Default | Description |
 |---|---|---|---|
-| `KIND` | ✅ | — | `spellcheck`, `axe`, or `ats`. Also names the comment's hidden marker |
-| `DATA` | ✅ | — | The checker's JSON output (`ats`: `toJSON(steps.<id>.outputs)`). Empty or clean removes the old comment |
+| `KIND` | ✅ | — | `spellcheck`, `axe`, `ats`, or `failure` (a workflow's failure notice). Also names the comment's hidden marker |
+| `DATA` | ✅ | — | The checker's JSON output (`ats`: `toJSON(steps.<id>.outputs)`; `failure`: `{workflow, subject, run_url}`). Empty or clean removes the old comment |
 | `COMMENT_KEY` | — | — | Slugified and appended to the marker (`KIND` `ats` + key `fullstack` = `ats-fullstack`), so one check run several times on a PR keeps one comment per run |
 | `COMMENT_ON_PR` | — | `true` | `false` turns commenting off |
 | `GH_TOKEN` | — | the job's `GITHUB_TOKEN` | Token that can write PR comments |
@@ -480,8 +480,9 @@ Checks out the calling repo, then chains diff → spellcheck → ATS check → f
 combined comment carries the spelling errors, so spellcheck runs with `COMMENT_ON_PR: "false"` to
 avoid posting them twice. The combined comment works for any caller that supplies `PR_NUMBER`.
 The ATS check posts its own marked comment, named after the `RESUME` file, which needs a `pull_request` caller. Calling the workflow in a matrix over several PDFs gives one ATS comment per PDF. `ATS_THRESHOLD` (integer 0-100, default 70) sets the passing score; a lower score warns and does not fail the job. On
-any step failure, a best-effort "Notify Step Errors" step posts a `# Markdown Checks` comment
-linking to the failed run.
+any step failure, a best-effort "Notify Step Errors" step posts a failure notice linking to the
+failed run. Like the ATS comment it is keyed by `RESUME`, so each PDF in a matrix keeps its own
+notice, and a passing re-run of that PDF removes it.
 
 ```yaml
 jobs:

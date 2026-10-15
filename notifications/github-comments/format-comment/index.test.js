@@ -22,6 +22,7 @@ const {
   formatSpellcheck,
   formatAxe,
   formatAts,
+  formatFailure,
   formatComment,
   run,
   MAX_BODY_LENGTH,
@@ -295,9 +296,39 @@ describe('formatAts', () => {
   });
 });
 
+describe('formatFailure', () => {
+  const runUrl = 'https://github.com/alcash55/Resume/actions/runs/123';
+
+  it('names the workflow and the resume, and links the run', () => {
+    expect(formatFailure({ workflow: 'Resume analysis', subject: 'resume/fullstack.pdf', run_url: runUrl })).toBe(
+      `## Resume analysis (resume/fullstack.pdf): failed\n\n⚠️ The workflow failed before it could finish. See the [workflow run](${runUrl}) for details.`
+    );
+  });
+
+  it('leaves the subject out when there is none', () => {
+    expect(formatFailure({ workflow: 'Resume analysis', run_url: runUrl }).split('\n')[0]).toBe('## Resume analysis: failed');
+  });
+
+  it('escapes markdown in the subject and drops a non-https run link', () => {
+    const body = formatFailure({ workflow: 'Resume analysis', subject: 'a_b@c.pdf', run_url: 'javascript:alert(1)' });
+
+    expect(body.split('\n')[0]).toBe('## Resume analysis (a\\_b@\u200bc.pdf): failed');
+    expect(body).not.toContain('javascript:');
+    expect(body).toContain('See the workflow run for details.');
+  });
+
+  it('names what was wrong when the workflow name is missing', () => {
+    expect(() => formatFailure({ subject: 'x.pdf' })).toThrow('Failure data needs a workflow name. Received keys: subject');
+  });
+
+  it('removes the notice when the data is empty, so a passing re-run clears it', () => {
+    expect(formatComment('failure', '')).toBe('');
+  });
+});
+
 describe('formatComment', () => {
   it('rejects an unknown kind and lists the valid ones', () => {
-    expect(() => formatComment('nope', '[]')).toThrow('KIND must be one of spellcheck, axe, ats, received "nope"');
+    expect(() => formatComment('nope', '[]')).toThrow('KIND must be one of spellcheck, axe, ats, failure, received "nope"');
   });
 
   it('treats empty data as a clean run', () => {

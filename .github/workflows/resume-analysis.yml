@@ -103,16 +103,32 @@ jobs:
           MESSAGE_TYPE: "github"
           MESSAGE: ${{ steps.create_msg.outputs.FORMATTED_MESSAGE }}
 
+      # The failure notice is keyed by RESUME, so a matrix over several PDFs
+      # keeps one notice per resume. The old notice went through the legacy
+      # heading match, where each variant deleted the one before it (#105).
       - name: 🚨 Notify Step Errors
         id: step_errors
         if: failure()
-        uses: alcash55/ac-composite-actions/notifications@main
+        uses: alcash55/ac-composite-actions/notifications/pr-comment@main
         with:
+          KIND: failure
+          COMMENT_KEY: ${{ inputs.RESUME }}
+          DATA: >-
+            {"workflow": "Resume analysis",
+            "subject": ${{ toJSON(inputs.RESUME) }},
+            "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}
           GITHUB_ORG: ${{ inputs.ORG }}
           PR_NUMBER: ${{ inputs.PR_NUMBER }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          MESSAGE_TYPE: "github"
-          MESSAGE: |
-            # Markdown Checks
 
-            ⚠️ The resume analysis workflow failed before it could finish. See the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+      # Empty DATA removes this resume's notice, so a passing re-run clears it.
+      - name: 🧹 Clear Failure Notice
+        if: success()
+        uses: alcash55/ac-composite-actions/notifications/pr-comment@main
+        with:
+          KIND: failure
+          COMMENT_KEY: ${{ inputs.RESUME }}
+          DATA: ""
+          GITHUB_ORG: ${{ inputs.ORG }}
+          PR_NUMBER: ${{ inputs.PR_NUMBER }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
