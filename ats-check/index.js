@@ -2,7 +2,16 @@ import * as core from "@actions/core";
 import * as fs from "fs";
 import * as path from "path";
 import fetch from "node-fetch";
-import { extractPdfText, findName, findSummary, NAME_SEARCH_LINES } from "./pdf-text.js";
+import {
+  extractPdfText,
+  findName,
+  findSummary,
+  findExperienceEntries,
+  hasEducationSection,
+  hasSkillsSection,
+  MIN_PLAUSIBLE_YEAR,
+  NAME_SEARCH_LINES,
+} from "./pdf-text.js";
 
 const RESUME_PATH = process.env.RESUME;
 const API_KEY = process.env.RESUME_PARSER_API_KEY;
@@ -85,12 +94,6 @@ async function parseResume() {
   return { data: await response.json(), fileBuffer };
 }
 
-/** Oldest start year a real resume entry plausibly has. */
-export const MIN_PLAUSIBLE_YEAR = 1990;
-
-/** Share of experience entries that must carry a plausible date for full date credit. */
-export const DATE_FULL_CREDIT_SHARE = 0.75;
-
 /**
  * Every date string the parser may attach to an experience entry. The API
  * returns `dates` (array), `date_start` and `date_end`; the older
@@ -111,10 +114,10 @@ export function entryDateStrings(entry) {
 }
 
 /**
- * True when an entry has a date a person could have written: a four-digit
+ * True when an API entry has a date a person could have written: a four-digit
  * year from MIN_PLAUSIBLE_YEAR through next year. The parser turns phone
  * digits and stray numbers into dates like "March 1978", so a bare "has a
- * date" check passes junk.
+ * date" check passes junk. Only used when the PDF text cannot be read.
  * @param {Object} entry
  * @param {number} [now] - epoch ms, injectable for tests
  * @returns {boolean}
@@ -129,30 +132,43 @@ export function hasPlausibleDate(entry, now = Date.now()) {
   );
 }
 
+/** Fewer characters than this means the PDF has no usable text layer. */
+export const MIN_READABLE_TEXT = 100;
+
+/** 10 for all, 5 for some, 0 for none of the entries. */
+function tier(count, total) {
+  return total > 0 && count === total ? 10 : count > 0 ? 5 : 0;
+}
+
 /**
- * Scores the parsed resume data for ATS compatibility.
+ * Scores the resume for ATS compatibility.
  *
  * Scoring rubric (100 points total):
  *   - Contact info present (name, email, phone)   → 15 pts
  *   - Work experience section present              → 20 pts
  *   - Education section present                    → 15 pts
  *   - Skills section present                       → 15 pts
- *   - No graphics / images detected (plain text)  → 10 pts  (inferred from parse quality)
- *   - Date ranges on experience entries            → 10 pts  (full at 75% of entries with a plausible date, 5 for any)
+ *   - Plain text, not an image (PDF has a text layer) → 10 pts
+ *   - Date ranges on experience entries            → 10 pts
  *   - Job titles present on experience entries     → 10 pts
  *   - Summary / objective section present          → 5 pts
  *
- * The API returns no summary and a null name, so those two read the PDF's own
- * text (`pdfText`) when the API fields are empty.
+ * The parser API is noisy: name is null, there is no summary, dates are
+ * mangled, and it invents entries (organization "SUMMARY", "CI"). So when the
+ * PDF's own text (`pdfText`) is readable it decides the sections, the job
+ * entries, their date ranges and titles. The API fills in only when the text
+ * is empty (an image-only PDF, or text extraction failed).
  *
  * @param {Object} data - Parsed resume data from the API
  * @param {string} [pdfText] - Text extracted from the PDF
+ * @param {number} [now] - epoch ms, injectable for tests
  * @returns {{ score: number, breakdown: Object, issues: string[] }}
  */
-export function scoreResume(data, pdfText = "") {
+export function scoreResume(data, pdfText = "", now = Date.now()) {
   let score = 0;
   const issues = [];
   const breakdown = {};
+  const readable = pdfText.trim().length >= MIN_READABLE_TEXT;
 
   // Contact info (15 pts)
   const hasName = Boolean(data.name?.trim() || findName(pdfText));
@@ -173,35 +189,63 @@ export function scoreResume(data, pdfText = "") {
   if (!hasEmail) issues.push("Missing email address.");
   if (!hasPhone) issues.push("Missing phone number.");
 
+  // Job entries: from the PDF text when readable, else from the API.
+  const fromText = readable ? findExperienceEntries(pdfText, now) : null;
+  const apiEntries = (data.experience ?? []).map((e) => ({
+    hasDate: hasPlausibleDate(e, now),
+    hasTitle: Boolean(e.title?.trim()),
+    label: "",
+  }));
+  const entries = readable ? (fromText?.entries ?? []) : apiEntries;
+  const hasExperience = entries.length > 0;
+
   // Work experience (20 pts)
-  const experience = data.experience ?? [];
-  const hasExperience = experience.length > 0;
   const expScore = hasExperience ? 20 : 0;
   score += expScore;
   breakdown["Work Experience"] = `${expScore}/20`;
-  if (!hasExperience) issues.push("No work experience section detected.");
+  if (!hasExperience)
+    issues.push(
+      readable
+        ? "No work experience entries detected. Looked for an EXPERIENCE (or Work Experience, Employment) heading with a job title or a date range under it in the PDF text."
+        : "No work experience section detected.",
+    );
 
   // Education (15 pts)
-  const education = data.education ?? [];
-  const hasEducation = education.length > 0;
+  const hasEducation = readable
+    ? hasEducationSection(pdfText)
+    : (data.education ?? []).length > 0;
   const eduScore = hasEducation ? 15 : 0;
   score += eduScore;
   breakdown["Education"] = `${eduScore}/15`;
-  if (!hasEducation) issues.push("No education section detected.");
+  if (!hasEducation)
+    issues.push(
+      readable
+        ? "No education section detected. Looked for an EDUCATION heading with text under it in the PDF."
+        : "No education section detected.",
+    );
 
   // Skills (15 pts)
-  const skills = data.skills ?? [];
-  const hasSkills = skills.length > 0;
+  const hasSkills = readable
+    ? hasSkillsSection(pdfText)
+    : (data.skills ?? []).length > 0;
   const skillsScore = hasSkills ? 15 : 0;
   score += skillsScore;
   breakdown["Skills"] = `${skillsScore}/15`;
   if (!hasSkills)
     issues.push(
-      "No skills section detected — ATS systems rely heavily on keyword matching.",
+      readable
+        ? "No skills section detected. Looked for a SKILLS heading with text under it in the PDF. ATS systems rely heavily on keyword matching."
+        : "No skills section detected — ATS systems rely heavily on keyword matching.",
     );
 
-  // Plain-text parseable (10 pts) — inferred: if API returned structured data, it's text-based
-  const parseable = hasName || hasExperience || hasEducation || hasSkills;
+  // Plain-text parseable (10 pts): a readable text layer is the real signal.
+  // Without extracted text, fall back to "the API got structured data".
+  const parseable =
+    readable ||
+    hasName ||
+    (data.experience ?? []).length > 0 ||
+    (data.education ?? []).length > 0 ||
+    (data.skills ?? []).length > 0;
   const parseScore = parseable ? 10 : 0;
   score += parseScore;
   breakdown["Plain Text / Parseable"] = `${parseScore}/10`;
@@ -211,30 +255,30 @@ export function scoreResume(data, pdfText = "") {
     );
 
   // Date ranges on experience entries (10 pts)
-  const entriesWithDates = experience.filter((e) => hasPlausibleDate(e));
-  const dateShare = hasExperience ? entriesWithDates.length / experience.length : 0;
-  const dateScore =
-    dateShare >= DATE_FULL_CREDIT_SHARE ? 10 : entriesWithDates.length > 0 ? 5 : 0;
+  const dated = entries.filter((e) => e.hasDate).length;
+  const dateScore = tier(dated, entries.length);
   score += dateScore;
   breakdown["Experience Date Ranges"] = `${dateScore}/10`;
-  if (hasExperience && dateScore < 10) {
+  if (hasExperience && dated < entries.length) {
+    const missing = readable
+      ? entries.filter((e) => !e.hasDate).map((e) => e.label || "untitled entry")
+      : [];
     issues.push(
-      `Only ${entriesWithDates.length} of ${experience.length} experience entries have a date from ${MIN_PLAUSIBLE_YEAR} to next year (looked at the parser's dates, date_start and date_end). Full credit needs ${DATE_FULL_CREDIT_SHARE * 100}%.`,
+      `${entries.length - dated} of ${entries.length} experience entries have no date range` +
+        (missing.length ? ` (${missing.join("; ")})` : "") +
+        `. Looked for a range like "8/2024 - 9/2026", "Apr 2023 - Jun 2024" or "2021 - Present" next to each job title, with years from ${MIN_PLAUSIBLE_YEAR} to next year.`,
     );
   }
 
   // Job titles on experience entries (10 pts)
-  const entriesWithTitles = experience.filter((e) => e.title?.trim());
-  const titleScore =
-    hasExperience && entriesWithTitles.length === experience.length
-      ? 10
-      : hasExperience && entriesWithTitles.length > 0
-        ? 5
-        : 0;
+  const titled = entries.filter((e) => e.hasTitle).length;
+  const titleScore = tier(titled, entries.length);
   score += titleScore;
   breakdown["Experience Job Titles"] = `${titleScore}/10`;
-  if (hasExperience && entriesWithTitles.length < experience.length) {
-    issues.push("Some experience entries are missing job titles.");
+  if (hasExperience && titled < entries.length) {
+    issues.push(
+      `${entries.length - titled} of ${entries.length} experience entries have no job title next to their dates.`,
+    );
   }
 
   // Summary / objective (5 pts)

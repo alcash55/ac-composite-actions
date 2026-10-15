@@ -138,12 +138,21 @@ A score below the threshold sets `ATS_PASSED` to `false` and logs a warning. It 
 | Job titles on experience entries | 10 |
 | Summary / objective section | 5 |
 
-The parser API returns no summary and a null `name`, so the action also reads the PDF's own text.
-The name is 2 to 4 alphabetic words on one of the first 6 lines (ALL CAPS and a first and last
-name on separate lines both work). The summary is a `SUMMARY`, `PROFILE`, `OBJECTIVE` or `ABOUT`
-heading followed by text. Experience dates count only when they hold a year from 1990 through next
-year, because the parser turns stray digits into dates like "March 1978". Full date credit needs
-75% of entries to have one, and any one earns 5.
+The parser API returns a null `name`, no summary, mangled dates, and invents entries (an
+organization named `SUMMARY`). So when the PDF has a text layer (100 or more characters), the action
+reads that text and the API only fills in when it has none.
+
+- Name: 2 to 4 alphabetic words on one of the first 6 lines (ALL CAPS, and a first and last name on
+  separate lines, both work). Summary: a `SUMMARY`, `PROFILE`, `OBJECTIVE` or `ABOUT` heading followed by text.
+- Experience, education and skills each need their heading (`EXPERIENCE`, `EDUCATION`, `SKILLS`, and
+  common variants) with text under it. A section ends at the next heading.
+- Jobs: under the experience heading, a date range line (`8/2024 - 9/2026`, `Apr 2023 - Jun 2024`,
+  `2021 - Present`, hyphen, en or em dash, or `to`) and a short capitalised job-title line are
+  anchors. Anchors with no bullet between them form one job, a second range or title starts the next,
+  and a bullet closes the job. Each job needs a range (10 points for all, 5 for some) and a title
+  (same tiers). Education and leadership dates sit outside this section and never count.
+- Years must run from 1990 through next year and the end may not precede the start.
+- With no readable text layer, the API entries stand in, with the same year check.
 
 ### Example usage
 

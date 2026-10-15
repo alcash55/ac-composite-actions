@@ -13,10 +13,28 @@ React and TypeScript micro-frontends on the other.
 SKILLS
 - TypeScript
 - Go
+- Kubernetes
 EXPERIENCE
 8/2024 - 9/2026
 Full-Time
 Software Engineer Example Energy
-- Migrated legacy endpoints onto a shared Go library
+- Migrated legacy Python endpoints across all seven submission APIs
+(CAISO, ERCOT, MISO) onto a shared Go library
+- Shipped micro-frontends across the trading platform front to back, the Go API behind
+it, and the Snowflake models that API reads from
+Go / TypeScript / React / Snowflake
+4/2023 - 6/2024
+Full-Time
+Software Engineer II Sample Corporation
+- Rebuilt the doc site in Next.js, with CI/CD pulling product markdown out of
+other repositories into a CMS
+Next.js / GitHub Actions / Looker
+7/2020 - 9/2020
+Internship
+Software Engineer Sample Corporation
+REST API / Google Cloud Platform
 EDUCATION
-Example University
+5/2021 Masters of Science: Information Systems Example University | GPA: 3.78
+5/2021 Bachelor of Science: Software Engineering Example University | GPA: 3.24
+LEADERSHIP AND ATHLETICS
+1/2022 - 1/2025 Lacrosse Coach, Varsity and Middle School Springfield West

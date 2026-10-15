@@ -87,7 +87,7 @@ describe("scoreResume", () => {
     });
 
     expect(breakdown["Experience Date Ranges"]).toBe("5/10");
-    expect(issues.some((i) => i.startsWith("Only 1 of 2 experience entries have a date"))).toBe(true);
+    expect(issues.some((i) => i.startsWith("1 of 2 experience entries have no date range"))).toBe(true);
     expect(breakdown["Experience Job Titles"]).toBe("10/10"); // both have titles
   });
 

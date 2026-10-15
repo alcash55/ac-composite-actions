@@ -32,6 +32,10 @@ const SUMMARY_HEADINGS = [
 
 const OTHER_HEADINGS = [
   "skills",
+  "employment history",
+  "work history",
+  "career history",
+  "professional background",
   "technical skills",
   "experience",
   "work experience",
@@ -124,4 +128,135 @@ export function findSummary(text) {
     if (!HEADINGS.has(normalizeHeading(lines[i + 1]))) return lines[i + 1];
   }
   return null;
+}
+
+const EXPERIENCE_HEADINGS = [
+  "experience",
+  "work experience",
+  "professional experience",
+  "employment",
+  "employment history",
+  "work history",
+  "career history",
+  "professional background",
+];
+const EDUCATION_HEADINGS = ["education", "academic background"];
+const SKILLS_HEADINGS = ["skills", "technical skills", "core skills", "key skills"];
+
+// Template headings are short ALL CAPS lines ("LEADERSHIP AND ATHLETICS"),
+// so one ends a section even when it is not in HEADINGS.
+function isHeading(line) {
+  return (
+    HEADINGS.has(normalizeHeading(line)) ||
+    (/^[A-Z][A-Z&/ ]{3,40}$/.test(line) && line.split(/\s+/).length <= 4)
+  );
+}
+
+/**
+ * Lines under the first heading that matches `names`, up to the next heading.
+ * @param {string} text
+ * @param {string[]} names - lowercase heading names
+ * @returns {string[] | null} null when the heading is absent
+ */
+export function sectionLines(text, names) {
+  const lines = linesOf(text);
+  const start = lines.findIndex((l) => names.includes(normalizeHeading(l)));
+  if (start === -1) return null;
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex(isHeading);
+  return end === -1 ? rest : rest.slice(0, end);
+}
+
+/** True when the section exists and has at least one line of content. */
+function hasSection(text, names) {
+  return (sectionLines(text, names) ?? []).length > 0;
+}
+export const hasEducationSection = (text) => hasSection(text, EDUCATION_HEADINGS);
+export const hasSkillsSection = (text) => hasSection(text, SKILLS_HEADINGS);
+export const hasExperienceHeading = (text) => sectionLines(text, EXPERIENCE_HEADINGS) !== null;
+
+const MONTH = "(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\\.?";
+const DATE = `(?:\\d{1,2}\\s*[/.]\\s*\\d{4}|${MONTH}\\s+\\d{4}|\\d{4})`;
+const END = `(?:${DATE}|Present|Current|Now|Today|Ongoing)`;
+const RANGE = new RegExp(`(${DATE})\\s*(?:-|\u2013|\u2014|to)\\s*(${END})(?![\\w/])`, "i");
+
+/** Oldest start year a real resume entry plausibly has. */
+export const MIN_PLAUSIBLE_YEAR = 1990;
+
+/**
+ * True when the line holds a date range ("8/2024 - 9/2026", "Apr 2023 - Jun
+ * 2024", "2021 - Present", with hyphen, en dash, em dash or "to"). Years must
+ * fall from 1990 through next year and the end may not precede the start.
+ * @param {string} line
+ * @param {number} [now] - epoch ms, injectable for tests
+ */
+export function hasDateRange(line, now = Date.now()) {
+  const m = RANGE.exec(line);
+  if (!m) return false;
+  const maxYear = new Date(now).getUTCFullYear() + 1;
+  const year = (d) => Number(/\d{4}/.exec(d)?.[0]);
+  const start = year(m[1]);
+  const end = /^\d|^[A-Za-z]{3}/.test(m[2]) && /\d{4}/.test(m[2]) ? year(m[2]) : maxYear;
+  return start >= MIN_PLAUSIBLE_YEAR && end <= maxYear && start <= end;
+}
+
+const JOB_TITLE =
+  /\b(engineer|developer|designer|manager|analyst|architect|consultant|specialist|director|intern|scientist|administrator|coach|lead|officer|associate|assistant|technician|instructor|teacher|tutor|programmer|researcher|owner|founder)\b/i;
+const BULLET = /^[-\u2022*\u2013\u00b7\u25aa>]\s/;
+
+function isTitleLine(line) {
+  return (
+    !BULLET.test(line) &&
+    /^\p{Lu}/u.test(line) &&
+    line.split(/\s+/).length <= 8 &&
+    !/[.,;:]$/.test(line) &&
+    JOB_TITLE.test(line)
+  );
+}
+
+/**
+ * Splits the EXPERIENCE section into job entries and reports whether each has
+ * a date range and a job title, from the printed text alone. A line that is a
+ * date range or a short capitalised job-title line is an anchor. Anchors with
+ * no bullet between them belong to one entry; a second range or a second title
+ * starts the next entry, and a bullet closes the entry. That reads both
+ * "range, type, title" and "title, range" layouts.
+ * @param {string} text
+ * @param {number} [now]
+ * @returns {{ entries: { hasDate: boolean, hasTitle: boolean, label: string }[] } | null}
+ *   null when the text has no experience heading
+ */
+export function findExperienceEntries(text, now = Date.now()) {
+  const section = sectionLines(text, EXPERIENCE_HEADINGS);
+  if (section === null) return null;
+
+  const entries = [];
+  let current = null;
+  let gap = 0;
+  const open = () => {
+    current = { hasDate: false, hasTitle: false, label: "" };
+    entries.push(current);
+    gap = 0;
+  };
+
+  for (const line of section) {
+    if (BULLET.test(line)) {
+      current = null;
+      continue;
+    }
+    const range = hasDateRange(line, now);
+    const title = isTitleLine(line) || (range && JOB_TITLE.test(line));
+    if (!range && !title) {
+      if (current && ++gap > 2) current = null;
+      continue;
+    }
+    if (!current || (range && current.hasDate) || (title && current.hasTitle)) open();
+    gap = 0;
+    if (range) current.hasDate = true;
+    if (title) {
+      current.hasTitle = true;
+      current.label = line;
+    }
+  }
+  return { entries };
 }

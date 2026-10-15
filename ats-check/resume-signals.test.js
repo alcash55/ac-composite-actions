@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
 import { scoreResume, hasPlausibleDate, entryDateStrings } from "./index.js";
-import { extractPdfText, findName, findSummary } from "./pdf-text.js";
+import { extractPdfText, findName, findSummary, findExperienceEntries, hasDateRange } from "./pdf-text.js";
 
 // apilayer-fullstack.json is a real Resume Parser response (email and phone
 // swapped for placeholders). It shows the parser's actual shape: name null, no
@@ -54,24 +54,11 @@ describe("experience dates from the real API shape", () => {
     expect(hasPlausibleDate({ dates }, NOW), `dates ${JSON.stringify(dates)}: ${why}`).toBe(expected);
   });
 
-  it("scores the real response: 2 of 7 entries have a plausible date, so 5/10 with the count in Issues", () => {
-    const { breakdown, issues } = scoreResume(REAL_RESPONSE, RESUME_TEXT);
+  it("with no readable PDF text, the API fallback counts 2 of 7 real-response entries as dated: 5/10", () => {
+    const { breakdown, issues } = scoreResume(REAL_RESPONSE, "", NOW);
 
-    expect(breakdown["Experience Date Ranges"], "real response, 2 of 7 plausible dates").toBe("5/10");
-    expect(issues.join("\n")).toContain("Only 2 of 7 experience entries have a date from 1990 to next year");
-  });
-
-  it("gives full date credit at 75% of entries even when the parser invents one junk entry", () => {
-    const real = (dates) => ({ title: "Engineer", dates });
-    const { breakdown } = scoreResume(
-      {
-        ...REAL_RESPONSE,
-        experience: [real(["March 2020"]), real(["May 2021"]), real(["June 2022"]), real(["March 1978"])],
-      },
-      RESUME_TEXT,
-    );
-
-    expect(breakdown["Experience Date Ranges"], "3 of 4 plausible").toBe("10/10");
+    expect(breakdown["Experience Date Ranges"], "real response, 2 of 7 plausible dates, no PDF text").toBe("5/10");
+    expect(issues.join("\n")).toContain("5 of 7 experience entries have no date range");
   });
 });
 
@@ -119,19 +106,20 @@ describe("findSummary", () => {
 });
 
 describe("scoreResume with PDF text", () => {
-  it("reaches 95 on the real response: name and summary come from the PDF text, dates stay at 5/10", () => {
-    const { score, breakdown, issues } = scoreResume(REAL_RESPONSE, RESUME_TEXT);
+  it("reaches 100 on the real response plus the PDF text: sections, jobs and name come from the text", () => {
+    const { score, breakdown, issues } = scoreResume(REAL_RESPONSE, RESUME_TEXT, NOW);
 
     expect(breakdown["Contact Info"], "name null in the API, 'JANE DOE' in the text").toBe("15/15");
-    expect(breakdown["Summary / Objective"]).toBe("5/5");
-    expect(score, JSON.stringify(breakdown)).toBe(95);
-    expect(issues.some((i) => i.startsWith("Missing candidate name"))).toBe(false);
+    expect(breakdown["Experience Date Ranges"], "3 jobs, each with a range in the text").toBe("10/10");
+    expect(score, JSON.stringify(breakdown)).toBe(100);
+    expect(issues).toEqual([]);
   });
 
   it("without the PDF text the same response loses the name and summary, and Issues says what was searched", () => {
-    const { score, issues } = scoreResume(REAL_RESPONSE, "");
+    const { score, issues } = scoreResume(REAL_RESPONSE, "", NOW);
 
-    expect(score, "95 minus 5 for name and 5 for summary").toBe(85);
+    // API fallback: dates 5/10 (2 of 7), no name, no summary.
+    expect(score, "100 minus 5 dates, 5 name, 5 summary").toBe(85);
     expect(issues.join("\n")).toContain("Looked for the parser's name field, then 2 to 4 alphabetic words on one of the first 6 lines");
     expect(issues.join("\n")).toContain("SUMMARY, PROFILE, OBJECTIVE or ABOUT heading followed by text");
   });
@@ -154,5 +142,107 @@ describe("extractPdfText on a real PDF", () => {
 
   it("rejects bytes that are not a PDF", async () => {
     await expect(extractPdfText(Buffer.from("not a pdf"))).rejects.toThrow();
+  });
+});
+
+describe("date ranges read from the PDF text", () => {
+  it.each([
+    ["8/2024 - 9/2026", true],
+    ["Apr 2023 - Jun 2024", true],
+    ["April 2023 \u2013 June 2024", true],
+    ["2021 \u2014 Present", true],
+    ["2021 - Present", true],
+    ["Jan 2020 to Mar 2022", true],
+    ["Software Engineer  7/2021 - 4/2023", true],
+    ["5/2021 Masters of Science", false], // one date, a graduation, not a range
+    ["March 1978 - May 1979", false], // before 1990
+    ["2030 - 2031", false], // after next year
+    ["2024 - 2020", false], // ends before it starts
+    ["+1 614 593 6899", false],
+  ])("hasDateRange(%j) is %s", (line, expected) => {
+    expect(hasDateRange(line, NOW), `line ${JSON.stringify(line)}`).toBe(expected);
+  });
+
+  it("finds every job in the real layout and its range, ignoring education and leadership dates", () => {
+    const { entries } = findExperienceEntries(RESUME_TEXT, NOW);
+
+    expect(entries.map((e) => e.label)).toEqual([
+      "Software Engineer Example Energy",
+      "Software Engineer II Sample Corporation",
+      "Software Engineer Sample Corporation",
+    ]);
+    expect(entries.every((e) => e.hasDate && e.hasTitle), JSON.stringify(entries)).toBe(true);
+  });
+
+  it("reads the title-then-range layout, with the range on the title line or the next line", () => {
+    const text = [
+      "EXPERIENCE",
+      "Backend Developer, Acme Corp  Jan 2020 - Mar 2022",
+      "- Built the billing service",
+      "Senior Developer Initech",
+      "2022 - Present",
+      "- Led the platform team",
+      "EDUCATION",
+      "State University 2016 - 2020",
+    ].join("\n");
+    const { entries } = findExperienceEntries(text, NOW);
+
+    expect(entries, JSON.stringify(entries)).toHaveLength(2);
+    expect(entries.every((e) => e.hasDate && e.hasTitle)).toBe(true);
+  });
+
+  it("loses date points when a job has no range, even though education and other jobs have dates", () => {
+    const lines = RESUME_TEXT.split("\n").filter((l) => l !== "4/2023 - 6/2024");
+    const text = lines.join("\n");
+    const { score, breakdown, issues } = scoreResume(REAL_RESPONSE, text, NOW);
+
+    expect(breakdown["Experience Date Ranges"], "3 jobs, the middle one has its range removed").toBe("5/10");
+    expect(score, JSON.stringify(breakdown)).toBe(95);
+    expect(issues.join("\n")).toContain("1 of 3 experience entries have no date range (Software Engineer II Sample Corporation)");
+  });
+
+  it("scores 0 date points when no job has a range", () => {
+    const text = RESUME_TEXT.replace(/^\d{1,2}\/\d{4} - \d{1,2}\/\d{4}\n/gm, "");
+    const { breakdown } = scoreResume(REAL_RESPONSE, text, NOW);
+
+    expect(breakdown["Experience Date Ranges"], "all three job ranges removed").toBe("0/10");
+  });
+
+  it("loses title points when a range has no title beside it", () => {
+    const text = RESUME_TEXT.replace("Software Engineer II Sample Corporation\n", "Sample Corporation\n");
+    const { breakdown, issues } = scoreResume(REAL_RESPONSE, text, NOW);
+
+    expect(breakdown["Experience Job Titles"]).toBe("5/10");
+    expect(issues.join("\n")).toContain("1 of 3 experience entries have no job title");
+  });
+});
+
+describe("sections and job entries come from the text, not the parser's inventions", () => {
+  it("does not count the parser's junk entries (organization SUMMARY, CI) as work experience", () => {
+    const text = RESUME_TEXT.replace(/EXPERIENCE[\s\S]*?EDUCATION/, "EDUCATION");
+    const { breakdown, issues } = scoreResume(REAL_RESPONSE, text, NOW);
+
+    expect(breakdown["Work Experience"], "7 API entries, no EXPERIENCE section in the text").toBe("0/20");
+    expect(issues.join("\n")).toContain("No work experience entries detected. Looked for an EXPERIENCE");
+  });
+
+  it("does not count the parser's 'Middle School' education entry when there is no EDUCATION heading", () => {
+    const text = RESUME_TEXT.replace(/EDUCATION[\s\S]*?LEADERSHIP/, "LEADERSHIP");
+    const { breakdown } = scoreResume(REAL_RESPONSE, text, NOW);
+
+    expect(breakdown["Education"], "API has education entries, the text has no EDUCATION section").toBe("0/15");
+  });
+
+  it("requires text under the SKILLS heading", () => {
+    const text = RESUME_TEXT.replace(/SKILLS[\s\S]*?EXPERIENCE/, "SKILLS\nEXPERIENCE");
+    const { breakdown } = scoreResume(REAL_RESPONSE, text, NOW);
+
+    expect(breakdown["Skills"], "API has skills, the SKILLS section in the text is empty").toBe("0/15");
+  });
+
+  it("scores an image-only PDF (no text) from the API fallback and not as parseable by text", () => {
+    const { breakdown } = scoreResume({}, "", NOW);
+
+    expect(breakdown["Plain Text / Parseable"]).toBe("0/10");
   });
 });
