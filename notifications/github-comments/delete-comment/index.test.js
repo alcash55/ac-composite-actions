@@ -113,6 +113,12 @@ describe('comments managed by upsert-comment', () => {
     expect(filterComments([managed])).toBeUndefined();
   });
 
+  it('leaves keyed markers alone too', () => {
+    const keyed = { id: 8, body: '<!-- ac-composite-actions:ats-fullstack -->\n## ATS check (fullstack.pdf): needs work (80/100)\n# Spell Check' };
+
+    expect(filterComments([keyed])).toBeUndefined();
+  });
+
   it('is skipped in favour of an older unmanaged comment', () => {
     const older = { id: 4, body: '# Spell Check\nold style' };
     expect(filterComments([older, managed])).toBe(4);

@@ -1,0 +1,51 @@
+- generic [ref=f5e2]:
+  - generic [ref=f5e3]:
+    - text: github-actions
+    - generic [ref=f5e4]: bot
+    - text: commented just now
+  - generic [ref=f5e5]:
+    - heading "Accessibility violations" [level=2] [ref=f5e6]
+    - paragraph [ref=f5e7]: axe found 3 violation(s) on 2 route(s).
+    - heading [level=3] [ref=f5e8]:
+      - code [ref=f5e9]: /
+    - list [ref=f5e10]:
+      - listitem [ref=f5e11]:
+        - strong [ref=f5e12]: critical
+        - code [ref=f5e13]: image-alt
+        - text: ": Images must have alternate text ("
+        - link "docs" [ref=f5e14] [cursor=pointer]:
+          - /url: https://dequeuniversity.com/rules/axe/4.10/image-alt
+        - text: ), 4 element(s)
+        - list [ref=f5e15]:
+          - listitem [ref=f5e16]:
+            - code [ref=f5e17]: img.hero
+          - listitem [ref=f5e18]:
+            - code [ref=f5e19]: "#gallery .thumb:nth-child(2)"
+          - listitem [ref=f5e20]:
+            - code [ref=f5e21]: img.logo
+          - listitem [ref=f5e22]: ...and 1 more
+      - listitem [ref=f5e23]:
+        - strong [ref=f5e24]: serious
+        - code [ref=f5e25]: color-contrast
+        - text: ": Elements must meet minimum color contrast ratio thresholds ("
+        - link "docs" [ref=f5e26] [cursor=pointer]:
+          - /url: https://dequeuniversity.com/rules/axe/4.10/color-contrast
+        - text: ), 2 element(s)
+        - list [ref=f5e27]:
+          - listitem [ref=f5e28]:
+            - code [ref=f5e29]: .muted-text
+          - listitem [ref=f5e30]:
+            - code [ref=f5e31]: .nav-link.disabled
+    - heading [level=3] [ref=f5e32]:
+      - code [ref=f5e33]: /projects
+    - list [ref=f5e34]:
+      - listitem [ref=f5e35]:
+        - strong [ref=f5e36]: serious
+        - code [ref=f5e37]: link-name
+        - text: ": Links must have discernible text ("
+        - link "docs" [ref=f5e38] [cursor=pointer]:
+          - /url: https://dequeuniversity.com/rules/axe/4.10/link-name
+        - text: ), 1 element(s)
+        - list [ref=f5e39]:
+          - listitem [ref=f5e40]:
+            - code [ref=f5e41]: a.icon-github

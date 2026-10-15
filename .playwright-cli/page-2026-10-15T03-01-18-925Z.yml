@@ -1,0 +1,43 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - text: github-actions
+    - generic [ref=e4]: bot
+    - text: commented just now
+  - generic [ref=e5]:
+    - 'heading "ATS check (fullstack.pdf): passed (95/100)" [level=2] [ref=e6]'
+    - heading "Score Breakdown" [level=2] [ref=e7]
+    - table [ref=e9]:
+      - rowgroup [ref=e10]:
+        - row [ref=e11]:
+          - columnheader "Category" [ref=e12]
+          - columnheader "Score" [ref=e13]
+      - rowgroup [ref=e14]:
+        - row [ref=e15]:
+          - cell "Contact Info" [ref=e16]
+          - cell "15/15" [ref=e17]
+        - row [ref=e18]:
+          - cell "Work Experience" [ref=e19]
+          - cell "20/20" [ref=e20]
+        - row [ref=e21]:
+          - cell "Education" [ref=e22]
+          - cell "15/15" [ref=e23]
+        - row [ref=e24]:
+          - cell "Skills" [ref=e25]
+          - cell "15/15" [ref=e26]
+        - row [ref=e27]:
+          - cell "Plain Text / Parseable" [ref=e28]
+          - cell "10/10" [ref=e29]
+        - row [ref=e30]:
+          - cell "Experience Date Ranges" [ref=e31]
+          - cell "5/10" [ref=e32]
+        - row [ref=e33]:
+          - cell "Experience Job Titles" [ref=e34]
+          - cell "10/10" [ref=e35]
+        - row [ref=e36]:
+          - cell "Summary / Objective" [ref=e37]
+          - cell "5/5" [ref=e38]
+    - heading "Issues & Recommendations" [level=2] [ref=e39]
+    - list [ref=e40]:
+      - listitem [ref=e41]: Only 2 of 7 experience entries have a date from 1990 to next year (looked at the parser's dates, date_start and date_end). Full credit needs 75%.
+    - paragraph [ref=e42]:
+      - emphasis [ref=e43]: "Passing threshold: 95/100"

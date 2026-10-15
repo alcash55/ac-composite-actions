@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { scoreResume, buildMarkdownReport } from "./index.js";
+import {
+  scoreResume,
+  buildMarkdownReport,
+  parseThreshold,
+  commentKeyFor,
+  DEFAULT_PASSING_SCORE,
+} from "./index.js";
 
 // scoreResume and buildMarkdownReport are pure; parseResume and the top-level
 // script are not exercised here (see the NODE_ENV/VITEST guard in index.js) —
@@ -43,7 +49,7 @@ describe("scoreResume", () => {
     expect(score).toBe(0);
     expect(breakdown["Contact Info"]).toBe("0/15");
     expect(breakdown["Work Experience"]).toBe("0/20");
-    expect(issues).toContain("Missing candidate name.");
+    expect(issues.some((i) => i.startsWith("Missing candidate name. Looked for"))).toBe(true);
     expect(issues).toContain("Missing email address.");
     expect(issues).toContain("Missing phone number.");
     expect(issues).toContain("No work experience section detected.");
@@ -81,7 +87,7 @@ describe("scoreResume", () => {
     });
 
     expect(breakdown["Experience Date Ranges"]).toBe("5/10");
-    expect(issues).toContain("Some experience entries are missing date ranges.");
+    expect(issues.some((i) => i.startsWith("1 of 2 experience entries have no date range"))).toBe(true);
     expect(breakdown["Experience Job Titles"]).toBe("10/10"); // both have titles
   });
 
@@ -126,5 +132,54 @@ describe("buildMarkdownReport", () => {
 
     expect(report).toContain("| Education | 15/15 |");
     expect(report).toContain("| Skills | 0/15 |");
+  });
+});
+
+describe("parseThreshold", () => {
+  it("defaults to 70 when the input is empty or unset", () => {
+    expect(parseThreshold(undefined)).toBe(DEFAULT_PASSING_SCORE);
+    expect(parseThreshold("")).toBe(70);
+    expect(parseThreshold("  ")).toBe(70);
+  });
+
+  it.each([
+    ["0", 0],
+    ["85", 85],
+    ["100", 100],
+    [" 90 ", 90],
+  ])("accepts %j as %i", (raw, expected) => {
+    expect(parseThreshold(raw), `ATS_THRESHOLD ${JSON.stringify(raw)}`).toBe(expected);
+  });
+
+  it.each(["101", "-1", "70.5", "abc", "1e2", "0x10", "70%"])(
+    "rejects %j and names it in the error",
+    (raw) => {
+      expect(() => parseThreshold(raw)).toThrow(
+        `ATS_THRESHOLD must be an integer from 0 to 100, received "${raw}"`,
+      );
+    },
+  );
+});
+
+describe("threshold in the report", () => {
+  it("prints the configured threshold", () => {
+    const report = buildMarkdownReport(85, {}, [], true, 90);
+
+    expect(report).toContain("_Passing threshold: 90/100_");
+  });
+
+  it("keeps 70 for callers that pass no threshold", () => {
+    expect(buildMarkdownReport(85, {}, [], true)).toContain("_Passing threshold: 70/100_");
+  });
+});
+
+describe("commentKeyFor", () => {
+  it("uses the resume filename without its extension", () => {
+    expect(commentKeyFor("/work/repo/resume/fullstack.pdf", "")).toBe("fullstack");
+    expect(commentKeyFor("/work/repo/resume/frontend.pdf", undefined)).toBe("frontend");
+  });
+
+  it("prefers an explicit key", () => {
+    expect(commentKeyFor("/work/repo/resume/fullstack.pdf", " mine ")).toBe("mine");
   });
 });

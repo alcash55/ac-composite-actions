@@ -49,6 +49,14 @@ inputs:
     description: Pull request to comment on. Defaults to the PR that triggered the workflow.
     required: false
     default: ""
+  COMMENT_KEY:
+    description: >
+      Set when the workflow runs this action more than once on the same pull
+      request (for example, once per site), so each run keeps its own comment
+      instead of overwriting the others. Any text; it is slugified into the
+      comment's hidden marker. Empty keeps one shared comment.
+    required: false
+    default: ""
   COMMENT_ON_PR:
     description: >
       Post the result as a pull request comment when the workflow is
@@ -139,6 +147,7 @@ runs:
       with:
         KIND: axe
         DATA: ${{ steps.axe_check.outputs.AXE_VIOLATIONS }}
+        COMMENT_KEY: ${{ inputs.COMMENT_KEY }}
         COMMENT_ON_PR: ${{ inputs.COMMENT_ON_PR }}
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         GITHUB_ORG: ${{ inputs.GITHUB_ORG }}

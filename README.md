@@ -109,8 +109,12 @@ Parses a resume PDF and scores its ATS (Applicant Tracking System) compatibility
 |---|---|---|
 | `RESUME` | ✅ | Path to the resume PDF, relative to the repo root |
 | `APILAYER_API_KEY` | ✅ | APILayer Resume Parser API key |
+| `ATS_THRESHOLD` | — | Minimum passing score, an integer from 0 to 100. Default `70`. Anything else fails the action with an error naming the value |
+| `COMMENT_KEY` | — | Names this resume's PR comment. Defaults to the filename without its extension, so `resume/fullstack.pdf` owns the `ats-fullstack` comment and several resumes on one PR keep separate comments |
 | `COMMENT_ON_PR` | — | `true` by default. Posts the score, verdict, and report as a PR comment. `false` turns it off |
 | `GH_TOKEN`, `GITHUB_ORG`, `PR_NUMBER` | — | Comment target overrides, see [PR comments](#pr-comments-from-checker-actions) |
+
+A score below the threshold sets `ATS_PASSED` to `false` and logs a warning. It does not fail the job.
 
 ### Outputs
 
@@ -118,7 +122,8 @@ Parses a resume PDF and scores its ATS (Applicant Tracking System) compatibility
 |---|---|
 | `ATS_SCORE` | Overall ATS compatibility score (0–100) |
 | `ATS_REPORT` | Detailed markdown report with score breakdown and recommendations |
-| `ATS_PASSED` | `"true"` if the score is 70 or above, `"false"` otherwise |
+| `ATS_PASSED` | `"true"` if the score is at or above `ATS_THRESHOLD`, `"false"` otherwise |
+| `ATS_RESUME` | File name of the scored resume, such as `fullstack.pdf` |
 
 ### Scoring rubric
 
@@ -132,6 +137,22 @@ Parses a resume PDF and scores its ATS (Applicant Tracking System) compatibility
 | Date ranges on experience entries | 10 |
 | Job titles on experience entries | 10 |
 | Summary / objective section | 5 |
+
+The parser API returns a null `name`, no summary, mangled dates, and invents entries (an
+organization named `SUMMARY`). So when the PDF has a text layer (100 or more characters), the action
+reads that text and the API only fills in when it has none.
+
+- Name: 2 to 4 alphabetic words on one of the first 6 lines (ALL CAPS, and a first and last name on
+  separate lines, both work). Summary: a `SUMMARY`, `PROFILE`, `OBJECTIVE` or `ABOUT` heading followed by text.
+- Experience, education and skills each need their heading (`EXPERIENCE`, `EDUCATION`, `SKILLS`, and
+  common variants) with text under it. A section ends at the next heading.
+- Jobs: under the experience heading, a date range line (`8/2024 - 9/2026`, `Apr 2023 - Jun 2024`,
+  `2021 - Present`, hyphen, en or em dash, or `to`) and a short capitalised job-title line are
+  anchors. Anchors with no bullet between them form one job, a second range or title starts the next,
+  and a bullet closes the job. Each job needs a range (10 points for all, 5 for some) and a title
+  (same tiers). Education and leadership dates sit outside this section and never count.
+- Years must run from 1990 through next year and the end may not precede the start.
+- With no readable text layer, the API entries stand in, with the same year check.
 
 ### Example usage
 
@@ -341,6 +362,7 @@ the comment by adding nothing. Call it directly only to comment on output from y
 |---|---|---|---|
 | `KIND` | ✅ | — | `spellcheck`, `axe`, or `ats`. Also names the comment's hidden marker |
 | `DATA` | ✅ | — | The checker's JSON output (`ats`: `toJSON(steps.<id>.outputs)`). Empty or clean removes the old comment |
+| `COMMENT_KEY` | — | — | Slugified and appended to the marker (`KIND` `ats` + key `fullstack` = `ats-fullstack`), so one check run several times on a PR keeps one comment per run |
 | `COMMENT_ON_PR` | — | `true` | `false` turns commenting off |
 | `GH_TOKEN` | — | the job's `GITHUB_TOKEN` | Token that can write PR comments |
 | `GITHUB_ORG` | — | the running repo | `<owner>/<repo>` |
@@ -415,7 +437,11 @@ request on their own, so the author sees what failed without opening the run log
   once in its heading, then the breakdown and recommendations. Long lists are cut under GitHub's size limit with a "N more not shown" line.
 - **One comment per check, updated in place.** Each comment starts with a hidden marker, for example
   `<!-- ac-composite-actions:spellcheck -->`, and a later run edits that comment rather than posting
-  another. The spellcheck and axe comments never touch each other.
+  another. The spellcheck and axe comments never touch each other. A check that runs more than
+  once on a PR (a matrix over resumes, axe on two sites) sets `COMMENT_KEY` so each run gets its
+  own marker, such as `<!-- ac-composite-actions:ats-fullstack -->`. `ats-check` does this by
+  itself from the resume filename, and its heading names the file: `ATS check (fullstack.pdf):
+  needs work (88/100)`. Spellcheck and axe take `COMMENT_KEY` but default to one shared comment.
 - **A clean run removes the old comment** so fixed errors do not linger. ATS always keeps its comment,
   since a passing score is still the result. If the check did not run at all (spellcheck with no
   changed files), the existing comment stays.
@@ -453,7 +479,7 @@ Called with `uses:` at the job level rather than the step level.
 Checks out the calling repo, then chains diff → spellcheck → ATS check → format → PR comment. The
 combined comment carries the spelling errors, so spellcheck runs with `COMMENT_ON_PR: "false"` to
 avoid posting them twice. The combined comment works for any caller that supplies `PR_NUMBER`.
-The ATS check posts its own marked comment, which needs a `pull_request` caller. On
+The ATS check posts its own marked comment, named after the `RESUME` file, which needs a `pull_request` caller. Calling the workflow in a matrix over several PDFs gives one ATS comment per PDF. `ATS_THRESHOLD` (integer 0-100, default 70) sets the passing score; a lower score warns and does not fail the job. On
 any step failure, a best-effort "Notify Step Errors" step posts a `# Markdown Checks` comment
 linking to the failed run.
 
@@ -466,6 +492,7 @@ jobs:
       ORG: ${{ github.repository }}
       BRANCH: ${{ github.head_ref }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
+      ATS_THRESHOLD: 80 # optional, default 70
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       APILAYER_API_KEY: ${{ secrets.APILAYER_API_KEY }}

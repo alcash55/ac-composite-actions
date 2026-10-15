@@ -13,7 +13,7 @@ const core = {
 
 mock.module('@actions/core', () => core);
 
-const { markerFor, readConfig, findMarked, upsertComment, describeError, run } = await import('./index.js');
+const { markerFor, markerName, slugify, readConfig, findMarked, upsertComment, describeError, run } = await import('./index.js');
 
 const MARKER = '<!-- ac-composite-actions:spellcheck -->';
 
@@ -205,5 +205,76 @@ describe('run never fails the step', () => {
     expect(core.setFailed).not.toHaveBeenCalled();
     expect(core.warning).toHaveBeenCalledTimes(1);
     expect(core.warning.mock.calls[0][0]).toContain('Missing required input(s)');
+  });
+});
+
+describe('slugify', () => {
+  it('lowercases and collapses everything outside [a-z0-9] into single hyphens', () => {
+    expect(slugify('Full Stack_Resume (v2).pdf')).toBe('full-stack-resume-v2-pdf');
+    expect(slugify('--front/end--')).toBe('front-end');
+  });
+
+  it('returns an empty string when nothing usable is left', () => {
+    expect(slugify('***')).toBe('');
+  });
+});
+
+describe('markerName and COMMENT_KEY', () => {
+  it('keeps the plain kind without a key, so existing comments keep their marker', () => {
+    expect(markerName('ats')).toBe('ats');
+    expect(markerName('ats', '  ')).toBe('ats');
+  });
+
+  it('appends the slugified key to the kind', () => {
+    expect(markerName('ats', 'FullStack')).toBe('ats-fullstack');
+  });
+
+  it('rejects a key with nothing usable in it and names the value', () => {
+    expect(() => markerName('ats', '***')).toThrow('COMMENT_KEY needs at least one letter or digit, received "***"');
+  });
+
+  it('builds the marker from MARKER and COMMENT_KEY in the environment', () => {
+    expect(readConfig({ ...VALID_ENV, MARKER: 'ats', COMMENT_KEY: 'frontend' }).marker).toBe(
+      '<!-- ac-composite-actions:ats-frontend -->'
+    );
+  });
+
+  it('gives three resumes three comments that do not touch each other', async () => {
+    // alcash55/Resume runs ats-check once per PDF on the same PR.
+    const resumes = ['fullstack', 'frontend', 'backend'];
+    const existing = resumes.map((name, index) => ({
+      id: index + 1,
+      body: `<!-- ac-composite-actions:ats-${name} -->\n## ATS check (${name}.pdf): needs work (50/100)`,
+    }));
+    // A comment from before COMMENT_KEY existed stays alone.
+    existing.push({ id: 9, body: '<!-- ac-composite-actions:ats -->\nold' });
+    const octokit = fakeOctokit(existing);
+
+    const config = readConfig({ ...VALID_ENV, MARKER: 'ats', COMMENT_KEY: 'frontend', MESSAGE: '## ATS check (frontend.pdf): passed (90/100)' });
+    const result = await upsertComment(octokit, config);
+
+    expect(result).toBe('updated');
+    expect(octokit.calls.update.map((call) => call.comment_id), 'only the frontend comment (id 2) should change').toEqual([2]);
+    expect(octokit.calls.remove).toEqual([]);
+    expect(octokit.calls.create).toEqual([]);
+  });
+
+  it('collapses duplicates of a keyed marker without touching the other keys', async () => {
+    const octokit = fakeOctokit([
+      { id: 1, body: '<!-- ac-composite-actions:ats-backend -->\na' },
+      { id: 2, body: '<!-- ac-composite-actions:ats-frontend -->\nb' },
+      { id: 3, body: '<!-- ac-composite-actions:ats-backend -->\nc' },
+    ]);
+
+    await upsertComment(octokit, readConfig({ ...VALID_ENV, MARKER: 'ats', COMMENT_KEY: 'backend', MESSAGE: 'new' }));
+
+    expect(octokit.calls.remove.map((call) => call.comment_id), 'the second backend comment should be collapsed').toEqual([3]);
+    expect(octokit.calls.update.map((call) => call.comment_id)).toEqual([1]);
+  });
+
+  it('does not let the plain ats marker adopt a keyed comment', () => {
+    const comments = [{ id: 1, body: '<!-- ac-composite-actions:ats-fullstack -->\nx' }];
+
+    expect(findMarked(comments, markerFor('ats'))).toEqual([]);
   });
 });

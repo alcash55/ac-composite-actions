@@ -291,7 +291,7 @@ export function formatAxe(data) {
 }
 
 /**
- * @param {unknown} data - the ats-check outputs: { ATS_SCORE, ATS_REPORT, ATS_PASSED }
+ * @param {unknown} data - the ats-check outputs: { ATS_SCORE, ATS_REPORT, ATS_PASSED, ATS_RESUME }
  * @returns {string} markdown, always non-empty: a passing score is still worth showing
  */
 export function formatAts(data) {
@@ -311,7 +311,11 @@ export function formatAts(data) {
   // "Overall Score" line. ats-check's log and report output keep it.
   const body = report.replace(/^# .*\n+/, '').replace(/^\*\*Overall Score: .*\*\*\n+/m, '');
 
-  return [`## ATS check: ${passed ? 'passed' : 'needs work'} (${score}/100)`, '', body]
+  // Name the resume: one PR can carry several ATS comments, one per PDF.
+  const resume = cleanText(data.ATS_RESUME, 100);
+  const subject = resume ? ` (${escapeText(resume, 100)})` : '';
+
+  return [`## ATS check${subject}: ${passed ? 'passed' : 'needs work'} (${score}/100)`, '', body]
     .join('\n')
     .slice(0, MAX_BODY_LENGTH);
 }

@@ -22,7 +22,8 @@
   "dependencies": {
     "@actions/core": "^3.0.1",
     "form-data": "^4.0.0",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "unpdf": "^1.8.1"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",

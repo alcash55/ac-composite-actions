@@ -1,0 +1,43 @@
+- generic [ref=f3e2]:
+  - generic [ref=f3e3]:
+    - text: github-actions
+    - generic [ref=f3e4]: bot
+    - text: commented just now
+  - generic [ref=f3e5]:
+    - 'heading "ATS check (backend.pdf): passed (95/100)" [level=2] [ref=f3e6]'
+    - heading "Score Breakdown" [level=2] [ref=f3e7]
+    - table [ref=f3e9]:
+      - rowgroup [ref=f3e10]:
+        - row [ref=f3e11]:
+          - columnheader "Category" [ref=f3e12]
+          - columnheader "Score" [ref=f3e13]
+      - rowgroup [ref=f3e14]:
+        - row [ref=f3e15]:
+          - cell "Contact Info" [ref=f3e16]
+          - cell "15/15" [ref=f3e17]
+        - row [ref=f3e18]:
+          - cell "Work Experience" [ref=f3e19]
+          - cell "20/20" [ref=f3e20]
+        - row [ref=f3e21]:
+          - cell "Education" [ref=f3e22]
+          - cell "15/15" [ref=f3e23]
+        - row [ref=f3e24]:
+          - cell "Skills" [ref=f3e25]
+          - cell "15/15" [ref=f3e26]
+        - row [ref=f3e27]:
+          - cell "Plain Text / Parseable" [ref=f3e28]
+          - cell "10/10" [ref=f3e29]
+        - row [ref=f3e30]:
+          - cell "Experience Date Ranges" [ref=f3e31]
+          - cell "5/10" [ref=f3e32]
+        - row [ref=f3e33]:
+          - cell "Experience Job Titles" [ref=f3e34]
+          - cell "10/10" [ref=f3e35]
+        - row [ref=f3e36]:
+          - cell "Summary / Objective" [ref=f3e37]
+          - cell "5/5" [ref=f3e38]
+    - heading "Issues & Recommendations" [level=2] [ref=f3e39]
+    - list [ref=f3e40]:
+      - listitem [ref=f3e41]: Only 2 of 6 experience entries have a date from 1990 to next year (looked at the parser's dates, date_start and date_end). Full credit needs 75%.
+    - paragraph [ref=f3e42]:
+      - emphasis [ref=f3e43]: "Passing threshold: 95/100"

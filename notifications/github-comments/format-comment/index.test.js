@@ -268,6 +268,18 @@ describe('formatAts', () => {
     );
   });
 
+  it('names the resume in the heading', () => {
+    const body = formatAts({ ATS_SCORE: '88', ATS_PASSED: 'false', ATS_RESUME: 'fullstack.pdf', ATS_REPORT: report });
+
+    expect(body.split('\n')[0]).toBe('## ATS check (fullstack.pdf): needs work (88/100)');
+  });
+
+  it('escapes markdown and mentions in a resume filename', () => {
+    const heading = formatAts({ ATS_SCORE: '88', ATS_PASSED: 'true', ATS_RESUME: 'a_b@c.pdf', ATS_REPORT: report }).split('\n')[0];
+
+    expect(heading).toBe('## ATS check (a\\_b@\u200bc.pdf): passed (88/100)');
+  });
+
   it('shows the score once, not again in an Overall Score line', () => {
     const body = formatAts({ ATS_SCORE: '50', ATS_PASSED: 'false', ATS_REPORT: report.replace(/85/g, '50') });
 

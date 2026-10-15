@@ -7,7 +7,7 @@ description: >
 
 inputs:
   KIND:
-    description: Which checker produced DATA, 'spellcheck', 'axe', or 'ats'. Also names the comment's hidden marker.
+    description: Which checker produced DATA, 'spellcheck', 'axe', or 'ats'. Also names the comment's hidden marker, with COMMENT_KEY appended.
     required: true
   DATA:
     description: >
@@ -26,6 +26,14 @@ inputs:
     default: ""
   GITHUB_ORG:
     description: <github owner>/<github repo>. Defaults to the repository running the workflow.
+    required: false
+    default: ""
+  COMMENT_KEY:
+    description: >
+      Tells apart several runs of one KIND on the same PR (three resume PDFs,
+      two axe sites). Slugified to [a-z0-9-] and appended to the marker, so
+      KIND ats with key "fullstack" owns the `ats-fullstack` comment. Empty
+      keeps the plain KIND marker.
     required: false
     default: ""
   PR_NUMBER:
@@ -72,4 +80,5 @@ runs:
         ORG: ${{ inputs.GITHUB_ORG || github.repository }}
         PR_NUMBER: ${{ inputs.PR_NUMBER || github.event.pull_request.number }}
         MARKER: ${{ inputs.KIND }}
+        COMMENT_KEY: ${{ inputs.COMMENT_KEY }}
         MESSAGE: ${{ steps.format.outputs.BODY }}

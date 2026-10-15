@@ -25,6 +25,11 @@ describe("action.yml PR comment wiring", () => {
     expect(commentStep.if).toContain("steps.axe_check.outcome == 'success'");
   });
 
+  it("takes an optional COMMENT_KEY and forwards it to pr-comment", () => {
+    expect(doc.inputs.COMMENT_KEY.default).toBe("");
+    expect(commentStep.with.COMMENT_KEY).toBe("${{ inputs.COMMENT_KEY }}");
+  });
+
   it("can be turned off, and is on by default", () => {
     expect(doc.inputs.COMMENT_ON_PR.default).toBe("true");
     expect(commentStep.with.COMMENT_ON_PR).toBe("${{ inputs.COMMENT_ON_PR }}");
