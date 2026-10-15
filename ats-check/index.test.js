@@ -49,7 +49,7 @@ describe("scoreResume", () => {
     expect(score).toBe(0);
     expect(breakdown["Contact Info"]).toBe("0/15");
     expect(breakdown["Work Experience"]).toBe("0/20");
-    expect(issues).toContain("Missing candidate name.");
+    expect(issues.some((i) => i.startsWith("Missing candidate name. Looked for"))).toBe(true);
     expect(issues).toContain("Missing email address.");
     expect(issues).toContain("Missing phone number.");
     expect(issues).toContain("No work experience section detected.");
@@ -87,7 +87,7 @@ describe("scoreResume", () => {
     });
 
     expect(breakdown["Experience Date Ranges"]).toBe("5/10");
-    expect(issues).toContain("Some experience entries are missing date ranges.");
+    expect(issues.some((i) => i.startsWith("Only 1 of 2 experience entries have a date"))).toBe(true);
     expect(breakdown["Experience Job Titles"]).toBe("10/10"); // both have titles
   });
 

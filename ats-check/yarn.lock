@@ -913,6 +913,11 @@ undici@^6.23.0:
   resolved "https://registry.yarnpkg.com/undici/-/undici-6.28.1.tgz#aa9d2c44aef3840bef80216f2a50f337543a3fbd"
   integrity sha512-zWpdTVD54H48CIybL0rWQ3ukpb9d23wM7eH5RtfdmeP70cWHNjtfo7P4vZX+5CoDcO53J4Pu5uXp7lNfjc6DRA==
 
+unpdf@^1.8.1:
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/unpdf/-/unpdf-1.8.1.tgz#9fb1ccc04817dc03fc5668e346edeccddec504be"
+  integrity sha512-xkURhy2SoGpOIH0a1gLHNkASPIQYonadDJs2AQwPEfUakafeD9EA1WTWWsaR++gfTCXJpV27W7tU1nXuk82UKQ==
+
 vite-node@2.1.9:
   version "2.1.9"
   resolved "https://registry.yarnpkg.com/vite-node/-/vite-node-2.1.9.tgz#549710f76a643f1c39ef34bdb5493a944e4f895f"

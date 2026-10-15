@@ -1,0 +1,22 @@
+JANE
+DOE
+Software Engineer
+ Springfield, IL
+ +1 555 010 0100
+ github.com/janedoe
+ jane.doe@example.com
+ linkedin.com/in/janedoe
+SUMMARY
+Software engineer who works the whole stack on
+energy trading software: Go services on one side,
+React and TypeScript micro-frontends on the other.
+SKILLS
+- TypeScript
+- Go
+EXPERIENCE
+8/2024 - 9/2026
+Full-Time
+Software Engineer Example Energy
+- Migrated legacy endpoints onto a shared Go library
+EDUCATION
+Example University

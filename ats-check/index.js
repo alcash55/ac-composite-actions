@@ -2,6 +2,7 @@ import * as core from "@actions/core";
 import * as fs from "fs";
 import * as path from "path";
 import fetch from "node-fetch";
+import { extractPdfText, findName, findSummary, NAME_SEARCH_LINES } from "./pdf-text.js";
 
 const RESUME_PATH = process.env.RESUME;
 const API_KEY = process.env.RESUME_PARSER_API_KEY;
@@ -49,7 +50,7 @@ export function commentKeyFor(resumePath, commentKey) {
 /**
  * Uploads the resume PDF to the APILayer Resume Parser and returns the parsed data.
  * @see https://blog.apilayer.com/everything-you-need-to-know-for-the-resume-parser-api/
- * @returns {Promise<Object>} Parsed resume JSON from the API
+ * @returns {Promise<{ data: Object, fileBuffer: Buffer }>} Parsed resume JSON from the API, and the PDF bytes
  */
 async function parseResume() {
   if (!RESUME_PATH || !fs.existsSync(RESUME_PATH)) {
@@ -81,7 +82,51 @@ async function parseResume() {
     process.exit(1);
   }
 
-  return response.json();
+  return { data: await response.json(), fileBuffer };
+}
+
+/** Oldest start year a real resume entry plausibly has. */
+export const MIN_PLAUSIBLE_YEAR = 1990;
+
+/** Share of experience entries that must carry a plausible date for full date credit. */
+export const DATE_FULL_CREDIT_SHARE = 0.75;
+
+/**
+ * Every date string the parser may attach to an experience entry. The API
+ * returns `dates` (array), `date_start` and `date_end`; the older
+ * start_date/end_date/date_range names stay as fallbacks.
+ * @param {Object} entry
+ * @returns {string[]}
+ */
+export function entryDateStrings(entry) {
+  const raw = [
+    ...(Array.isArray(entry?.dates) ? entry.dates : [entry?.dates]),
+    entry?.date_start,
+    entry?.date_end,
+    entry?.start_date,
+    entry?.end_date,
+    entry?.date_range,
+  ];
+  return raw.filter((d) => typeof d === "string" && d.trim() !== "");
+}
+
+/**
+ * True when an entry has a date a person could have written: a four-digit
+ * year from MIN_PLAUSIBLE_YEAR through next year. The parser turns phone
+ * digits and stray numbers into dates like "March 1978", so a bare "has a
+ * date" check passes junk.
+ * @param {Object} entry
+ * @param {number} [now] - epoch ms, injectable for tests
+ * @returns {boolean}
+ */
+export function hasPlausibleDate(entry, now = Date.now()) {
+  const maxYear = new Date(now).getUTCFullYear() + 1;
+  return entryDateStrings(entry).some((d) =>
+    [...d.matchAll(/\b(19|20)\d{2}\b/g)].some((m) => {
+      const year = Number(m[0]);
+      return year >= MIN_PLAUSIBLE_YEAR && year <= maxYear;
+    }),
+  );
 }
 
 /**
@@ -93,20 +138,24 @@ async function parseResume() {
  *   - Education section present                    → 15 pts
  *   - Skills section present                       → 15 pts
  *   - No graphics / images detected (plain text)  → 10 pts  (inferred from parse quality)
- *   - Date ranges on experience entries            → 10 pts
+ *   - Date ranges on experience entries            → 10 pts  (full at 75% of entries with a plausible date, 5 for any)
  *   - Job titles present on experience entries     → 10 pts
  *   - Summary / objective section present          → 5 pts
  *
+ * The API returns no summary and a null name, so those two read the PDF's own
+ * text (`pdfText`) when the API fields are empty.
+ *
  * @param {Object} data - Parsed resume data from the API
+ * @param {string} [pdfText] - Text extracted from the PDF
  * @returns {{ score: number, breakdown: Object, issues: string[] }}
  */
-export function scoreResume(data) {
+export function scoreResume(data, pdfText = "") {
   let score = 0;
   const issues = [];
   const breakdown = {};
 
   // Contact info (15 pts)
-  const hasName = Boolean(data.name?.trim());
+  const hasName = Boolean(data.name?.trim() || findName(pdfText));
   const hasEmail = Array.isArray(data.email)
     ? data.email.length > 0
     : Boolean(data.email?.trim());
@@ -117,7 +166,10 @@ export function scoreResume(data) {
     (hasName ? 5 : 0) + (hasEmail ? 5 : 0) + (hasPhone ? 5 : 0);
   score += contactScore;
   breakdown["Contact Info"] = `${contactScore}/15`;
-  if (!hasName) issues.push("Missing candidate name.");
+  if (!hasName)
+    issues.push(
+      `Missing candidate name. Looked for the parser's name field, then 2 to 4 alphabetic words on one of the first ${NAME_SEARCH_LINES} lines of the PDF text.`,
+    );
   if (!hasEmail) issues.push("Missing email address.");
   if (!hasPhone) issues.push("Missing phone number.");
 
@@ -159,19 +211,16 @@ export function scoreResume(data) {
     );
 
   // Date ranges on experience entries (10 pts)
-  const entriesWithDates = experience.filter(
-    (e) => e.start_date || e.end_date || e.date_range,
-  );
+  const entriesWithDates = experience.filter((e) => hasPlausibleDate(e));
+  const dateShare = hasExperience ? entriesWithDates.length / experience.length : 0;
   const dateScore =
-    hasExperience && entriesWithDates.length === experience.length
-      ? 10
-      : hasExperience && entriesWithDates.length > 0
-        ? 5
-        : 0;
+    dateShare >= DATE_FULL_CREDIT_SHARE ? 10 : entriesWithDates.length > 0 ? 5 : 0;
   score += dateScore;
   breakdown["Experience Date Ranges"] = `${dateScore}/10`;
-  if (hasExperience && entriesWithDates.length < experience.length) {
-    issues.push("Some experience entries are missing date ranges.");
+  if (hasExperience && dateScore < 10) {
+    issues.push(
+      `Only ${entriesWithDates.length} of ${experience.length} experience entries have a date from ${MIN_PLAUSIBLE_YEAR} to next year (looked at the parser's dates, date_start and date_end). Full credit needs ${DATE_FULL_CREDIT_SHARE * 100}%.`,
+    );
   }
 
   // Job titles on experience entries (10 pts)
@@ -189,13 +238,15 @@ export function scoreResume(data) {
   }
 
   // Summary / objective (5 pts)
-  const hasSummary = Boolean(data.summary?.trim() || data.objective?.trim());
+  const hasSummary = Boolean(
+    data.summary?.trim() || data.objective?.trim() || findSummary(pdfText),
+  );
   const summaryScore = hasSummary ? 5 : 0;
   score += summaryScore;
   breakdown["Summary / Objective"] = `${summaryScore}/5`;
   if (!hasSummary)
     issues.push(
-      "Consider adding a professional summary or objective (not required but helps ATS ranking).",
+      "Consider adding a professional summary or objective (not required but helps ATS ranking). Looked for a SUMMARY, PROFILE, OBJECTIVE or ABOUT heading followed by text in the PDF.",
     );
 
   return { score, breakdown, issues };
@@ -255,11 +306,20 @@ export function buildMarkdownReport(
 if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
   try {
     const threshold = parseThreshold(process.env.ATS_THRESHOLD);
-    const data = await parseResume();
+    const { data, fileBuffer } = await parseResume();
 
     core.info("Resume parsed successfully. Scoring ATS compatibility...");
 
-    const { score, breakdown, issues } = scoreResume(data);
+    // The API gives no name or summary, so read the PDF's text. A PDF pdfjs
+    // cannot read falls back to the API fields alone rather than failing.
+    let pdfText = "";
+    try {
+      pdfText = await extractPdfText(fileBuffer);
+    } catch (e) {
+      core.warning(`Could not read text from the PDF: ${e}`);
+    }
+
+    const { score, breakdown, issues } = scoreResume(data, pdfText);
     const passed = score >= threshold;
     const report = buildMarkdownReport(
       score,

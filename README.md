@@ -138,6 +138,13 @@ A score below the threshold sets `ATS_PASSED` to `false` and logs a warning. It 
 | Job titles on experience entries | 10 |
 | Summary / objective section | 5 |
 
+The parser API returns no summary and a null `name`, so the action also reads the PDF's own text.
+The name is 2 to 4 alphabetic words on one of the first 6 lines (ALL CAPS and a first and last
+name on separate lines both work). The summary is a `SUMMARY`, `PROFILE`, `OBJECTIVE` or `ABOUT`
+heading followed by text. Experience dates count only when they hold a year from 1990 through next
+year, because the parser turns stray digits into dates like "March 1978". Full date credit needs
+75% of entries to have one, and any one earns 5.
+
 ### Example usage
 
 ```yaml
