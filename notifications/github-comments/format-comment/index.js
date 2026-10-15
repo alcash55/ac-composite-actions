@@ -320,10 +320,33 @@ export function formatAts(data) {
     .slice(0, MAX_BODY_LENGTH);
 }
 
+/**
+ * A workflow's failure notice. It goes through the marker path like the
+ * checker comments so each matrix variant owns its own notice (COMMENT_KEY),
+ * instead of the heading match that let variants delete each other's (#105).
+ * @param {unknown} data - { workflow, subject?, run_url? }
+ * @returns {string} markdown
+ */
+export function formatFailure(data) {
+  const workflow = cleanText(data?.workflow, 100);
+
+  if (!workflow) {
+    throw new Error(`Failure data needs a workflow name. Received keys: ${Object.keys(data ?? {}).join(', ') || 'none'}`);
+  }
+
+  const subject = cleanText(data.subject, 100);
+  const heading = `## ${escapeText(workflow, 100)}${subject ? ` (${escapeText(subject, 100)})` : ''}: failed`;
+  const url = safeUrl(data.run_url);
+  const run = url ? `[workflow run](${url})` : 'workflow run';
+
+  return [heading, '', `⚠️ The workflow failed before it could finish. See the ${run} for details.`].join('\n');
+}
+
 const FORMATTERS = {
   spellcheck: formatSpellcheck,
   axe: formatAxe,
   ats: formatAts,
+  failure: formatFailure,
 };
 
 export const KINDS = Object.keys(FORMATTERS);
