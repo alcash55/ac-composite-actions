@@ -1,5 +1,7 @@
 [extend]
 useDefault = true
+[allowlist]
+paths = ['''secret-scan-validation\.env''']
 [[rules]]
 id = 'comment-validation-fixture'
 regex = '''BETTERLEAKS_TEST_FIXTURE=(not-a-real-secret)'''
