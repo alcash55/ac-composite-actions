@@ -1,8 +1,8 @@
 name: CI
 
 # Runs every action directory's own test suite on every PR. Nothing here should ever
-# call GitHub Actions locally or hit real APIs — each directory's tests are expected
-# to mock what they need (see diff/index.test.js as the standard to match).
+# call GitHub Actions locally or hit service APIs. The Betterleaks integration
+# fixtures use a checksum-verified release download, with credential validation off.
 on:
   pull_request:
 
@@ -29,6 +29,7 @@ jobs:
         # `pm` is whichever package manager that directory's scripts use (yarn or bun).
         include:
           - { dir: diff, pm: yarn }
+          - { dir: security/betterleaks, pm: yarn }
           - { dir: markdown-checks/spellcheck, pm: yarn }
           - { dir: accessibility/axe-check, pm: yarn }
           - { dir: format-message, pm: yarn }
@@ -57,6 +58,20 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: ${{ matrix.pm == 'yarn' && 'yarn install --frozen-lockfile' || 'bun install --frozen-lockfile' }}
 
+      - name: Install verified Betterleaks for integration fixtures
+        if: matrix.dir == 'security/betterleaks'
+        working-directory: security/betterleaks
+        env:
+          NODE_ENV: test
+        run: |
+          node --input-type=module <<'JS'
+          import { install } from './src/index.js';
+          import { mkdtempSync, appendFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const binary = install(mkdtempSync(join(process.env.RUNNER_TEMP, 'betterleaks-test-')));
+          appendFileSync(process.env.GITHUB_ENV, `BETTERLEAKS_TEST_BINARY=${binary}\n`);
+          JS
+
       - name: Run tests
         working-directory: ${{ matrix.dir }}
         run: ${{ matrix.pm == 'yarn' && 'yarn test' || 'bun test' }}
@@ -81,6 +96,7 @@ jobs:
         # dist/" section.
         include:
           - { dir: diff, pm: yarn }
+          - { dir: security/betterleaks, pm: yarn }
           - { dir: ats-check, pm: yarn }
           - { dir: format-message, pm: yarn }
           - { dir: accessibility/axe-check, pm: yarn }

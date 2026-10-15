@@ -14,6 +14,7 @@ action takes effect immediately for every repo that uses it.
 | Action | Status | What it does |
 |---|---|---|
 | [`diff`](#diff) | ✅ Ready | Lists the files changed in a pull request |
+| [`security/betterleaks`](#securitybetterleaks) | ✅ Ready | Scans PR commits or full git history for secrets |
 | [`ats-check`](#ats-check) | ✅ Ready | Scores a resume PDF for ATS compatibility |
 | [`markdown-checks/spellcheck`](#markdown-checksspellcheck) | ✅ Ready | Spellchecks changed markdown with cspell |
 | [`accessibility/axe-check`](#accessibilityaxe-check) | ✅ Ready | Runs @axe-core/playwright's WCAG 2 A/AA ruleset |
@@ -21,6 +22,97 @@ action takes effect immediately for every repo that uses it.
 | [`notifications/pr-comment`](#notificationspr-comment) | ✅ Ready | Upserts one PR comment per checker, found by a hidden marker |
 | [`notifications/discord-messages`](#notificationsdiscord-messages) | ✅ Ready | Sends a Discord webhook message |
 | [`format-message`](#format-message) | ✅ Ready | Formats a spellcheck result into a comment body |
+
+---
+
+## `security/betterleaks`
+
+Runs [Betterleaks v1.9.0](https://github.com/betterleaks/betterleaks/tree/v1.9.0),
+maintained by the original Gitleaks author and team. This implements issue #97 using
+Betterleaks instead of adding the proposed `security/gitleaks` path.
+Supports Linux x64 and arm64 runners with Node 18 or newer, curl, tar, and git.
+The action downloads the release archive, verifies a SHA256 stored in the action,
+then extracts and runs it. It does not validate credentials against provider APIs.
+
+### Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `MODE` | automatic | `diff` for `pull_request`, `full` for other events. Explicit `diff` or `full` overrides this. |
+| `BASE_REF` | PR base SHA | Base ref for `diff`. Required outside a PR event. |
+| `CONFIG_PATH` | auto-discover | Uses `.betterleaks.toml`, then `.gitleaks.toml`. A custom path must exist. |
+| `BETTERLEAKS_VERSION` | `1.9.0` | Stable release version without `v`. Overrides require a checksum. |
+| `BETTERLEAKS_SHA256` | built-in per architecture | Release archive SHA256. Required for a version override. |
+| `COMMENT_ON_PR` | `true` | Post redacted findings using `notifications/pr-comment`. |
+| `GH_TOKEN` | job token | Token for PR comments. |
+| `GITHUB_ORG` | current repository | Repository for PR comments. |
+| `PR_NUMBER` | event PR | PR to comment on. |
+
+### Outputs
+
+| Output | Description |
+|---|---|
+| `FINDINGS` | JSON array of `{ file, line, rule, commit, match }`. Match is always `[REDACTED]`. |
+| `HAS_FINDINGS` | `true` or `false`. Findings also fail the action. |
+| `REPORT_PATH` | Bounded, redacted `result.json` for a separate reporter workflow on PR events. |
+
+PR scans use the base SHA through the PR head SHA, even when checkout uses GitHub's
+synthetic merge commit. Full scans use all locally available refs. Both modes require
+complete history and fail with checkout instructions if history is shallow or missing.
+
+The consumer owns its config and allowlists. No shared allowlist is added.
+Betterleaks v1 accepts `.gitleaks.toml` allowlists. Keep `useDefault = true` under
+`[extend]` if a config only adds allowlists and should retain the default rules.
+The pinned AWS rule requires an access key ID paired with a secret access key within
+five lines, so a bare AWS ID is not a sufficient smoke-test fixture.
+
+Findings fail the step and appear in the job summary with file, line, rule, commit,
+and `[REDACTED]`. The summary shows at most 100 findings. Raw scanner logs and reports
+are not published. Rotate any live credential a full scan finds, even if it was deleted.
+Direct PR comments need `pull-requests: write`; unavailable comment permissions only warn.
+The rollout uses a separate `workflow_run` reporter so fork and Dependabot PRs can
+receive comments too. It verifies the artifact's run, repository, PR number, and
+current head SHA before posting. A stale scan cannot overwrite a newer PR result.
+The reporter only reads JSON, never checks out PR code, and fails visibly if posting
+is unavailable. Reports contain at most 100 findings and no secret values.
+
+```yaml
+name: Secret scan
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: alcash55/ac-composite-actions/security/betterleaks@main
+```
+
+### Tests
+
+```bash
+cd security/betterleaks
+yarn install --frozen-lockfile
+yarn test
+# Run real-scanner fixtures using the verified release binary:
+BETTERLEAKS_TEST_BINARY=/absolute/path/to/betterleaks yarn test
+yarn build
+```
+
+Tests cover PR commit selection, shallow history, checksum rejection, redaction,
+and, with the binary supplied, real AWS fixtures, old-history exclusion, config
+errors, and consumer allowlists. The committed bundle avoids installs at runtime.
+
+Roll out to Portfolio after this action and its comment formatter reach `main`.
+Run a full scan first and triage findings before enabling it in more consumers.
 
 ---
 
@@ -360,7 +452,7 @@ the comment by adding nothing. Call it directly only to comment on output from y
 
 | Input | Required | Default | Description |
 |---|---|---|---|
-| `KIND` | ✅ | — | `spellcheck`, `axe`, `ats`, or `failure` (a workflow's failure notice). Also names the comment's hidden marker |
+| `KIND` | ✅ | — | `spellcheck`, `axe`, `ats`, `secrets`, or `failure` (a workflow's failure notice). Also names the comment's hidden marker |
 | `DATA` | ✅ | — | The checker's JSON output (`ats`: `toJSON(steps.<id>.outputs)`; `failure`: `{workflow, subject, run_url}`). Empty or clean removes the old comment |
 | `COMMENT_KEY` | — | — | Slugified and appended to the marker (`KIND` `ats` + key `fullstack` = `ats-fullstack`), so one check run several times on a PR keeps one comment per run |
 | `COMMENT_ON_PR` | — | `true` | `false` turns commenting off |

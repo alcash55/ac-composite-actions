@@ -327,8 +327,16 @@ describe('formatFailure', () => {
 });
 
 describe('formatComment', () => {
+  it('formats secret metadata without ever displaying a supplied match', () => {
+    const body = formatComment('secrets', JSON.stringify([{ file: 'key`file.env\n# injected', line: 2, rule: 'aws', commit: 'abc123', match: 'do-not-print-this' }]));
+    expect(body).toContain('[REDACTED]');
+    expect(body).not.toContain('do-not-print-this');
+    expect(body).not.toContain('\n# injected');
+    expect(formatComment('secrets', '[]')).toBe('');
+  });
+
   it('rejects an unknown kind and lists the valid ones', () => {
-    expect(() => formatComment('nope', '[]')).toThrow('KIND must be one of spellcheck, axe, ats, failure, received "nope"');
+    expect(() => formatComment('nope', '[]')).toThrow('KIND must be one of spellcheck, axe, ats, failure, secrets, received "nope"');
   });
 
   it('treats empty data as a clean run', () => {

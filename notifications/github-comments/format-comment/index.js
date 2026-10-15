@@ -342,11 +342,23 @@ export function formatFailure(data) {
   return [heading, '', `⚠️ The workflow failed before it could finish. See the ${run} for details.`].join('\n');
 }
 
+export function formatSecrets(data) {
+  const findings = Array.isArray(data) ? data : data?.findings;
+  const total = Array.isArray(data) ? data.length : data?.total;
+  if (!Array.isArray(findings) || !Number.isInteger(total) || total < findings.length) throw new Error('Secret scan data must contain findings and a total.');
+  if (!total) return '';
+  const header = ['# Secret scan', '', `${total} finding(s). Rotate any live credentials.`, ''];
+  if (total > findings.length) header.push(`Showing the first ${findings.length} findings. See the job summary for the scan result.`, '');
+  return joinWithinLimit(header,
+    findings.map((f) => `${codeSpan(f.file)}:${codeSpan(f.line)} | Rule ${codeSpan(f.rule)} | Commit ${codeSpan(f.commit)} | [REDACTED]`), 'findings');
+}
+
 const FORMATTERS = {
   spellcheck: formatSpellcheck,
   axe: formatAxe,
   ats: formatAts,
   failure: formatFailure,
+  secrets: formatSecrets,
 };
 
 export const KINDS = Object.keys(FORMATTERS);

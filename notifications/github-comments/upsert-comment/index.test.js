@@ -14,6 +14,7 @@ const core = {
 mock.module('@actions/core', () => core);
 
 const { markerFor, markerName, slugify, readConfig, findMarked, upsertComment, describeError, run } = await import('./index.js');
+const { formatComment } = await import('../format-comment/index.js');
 
 const MARKER = '<!-- ac-composite-actions:spellcheck -->';
 
@@ -51,6 +52,36 @@ function fakeOctokit(comments) {
 }
 
 const CONFIG = { owner: 'a', repo: 'b', prNumber: 7, marker: MARKER, message: '## Spelling errors\n- `wrod`' };
+
+describe('secret finding comment lifecycle', () => {
+  it('fails a dedicated reporter when commenting is unavailable', async () => {
+    await run({ FAIL_ON_ERROR: 'true' });
+    expect(core.setFailed).toHaveBeenCalled();
+    expect(core.warning).not.toHaveBeenCalled();
+  });
+  it('creates a redacted comment, updates the same comment, then removes it on a clean rerun', async () => {
+    const marker = markerFor('secrets');
+    const data = [{ file: 'fixture.env', line: 1, rule: 'aws-access-token', commit: 'abc123', match: 'never-publish-this' }];
+    const config = { ...CONFIG, marker, message: formatComment('secrets', JSON.stringify(data)) };
+    const first = fakeOctokit([]);
+    expect(await upsertComment(first, config)).toBe('created');
+    const body = first.calls.create[0].body;
+    expect(body).toContain('[REDACTED]');
+    expect(body).toContain('fixture.env');
+    expect(body).not.toContain('never-publish-this');
+
+    const existing = [{ id: 99, body }, { id: 100, body: `${MARKER}\nUnrelated spellcheck` }];
+    const second = fakeOctokit(existing);
+    const changed = formatComment('secrets', JSON.stringify([{ ...data[0], line: 3 }]));
+    expect(await upsertComment(second, { ...config, message: changed })).toBe('updated');
+    expect(second.calls.update[0].comment_id).toBe(99);
+    expect(second.calls.create).toHaveLength(0);
+
+    const clean = fakeOctokit(existing);
+    expect(await upsertComment(clean, { ...config, message: formatComment('secrets', '[]') })).toBe('deleted');
+    expect(clean.calls.remove.map((call) => call.comment_id)).toEqual([99]);
+  });
+});
 
 beforeEach(() => {
   core.notice.mockClear();

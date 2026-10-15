@@ -1,0 +1,39 @@
+name: Comment on secret scan
+description: Verify a redacted scan artifact against its source PR and update the finding comment.
+inputs:
+  REPORT_PATH:
+    description: Path to downloaded result.json, treated only as data.
+    required: true
+outputs: {}
+runs:
+  using: composite
+  steps:
+    - name: Verify report provenance and current PR head
+      id: verify
+      shell: bash
+      run: node "$ACTION_PATH/../dist/comment.js"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        REPORT_PATH: ${{ inputs.REPORT_PATH }}
+        GH_TOKEN: ${{ github.token }}
+    - name: Format findings
+      id: format
+      if: ${{ steps.verify.outputs.DATA != '' }}
+      shell: bash
+      run: node "$ACTION_PATH/../../../notifications/dist/format-comment/index.js"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        KIND: secrets
+        DATA: ${{ steps.verify.outputs.DATA }}
+    - name: Update PR comment
+      if: ${{ steps.format.outcome == 'success' }}
+      shell: bash
+      run: node "$ACTION_PATH/../../../notifications/dist/upsert-comment/index.js"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        GH_TOKEN: ${{ github.token }}
+        ORG: ${{ github.repository }}
+        PR_NUMBER: ${{ steps.verify.outputs.PR_NUMBER }}
+        MARKER: secrets
+        FAIL_ON_ERROR: "true"
+        MESSAGE: ${{ steps.format.outputs.BODY }}
