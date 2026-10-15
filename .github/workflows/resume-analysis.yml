@@ -18,6 +18,11 @@ on:
         description: "The number that identifies the pull request"
         required: true
         type: number
+      ATS_THRESHOLD:
+        description: "Minimum ATS score (integer, 0-100) that counts as passing. A lower score warns but does not fail the job."
+        required: false
+        type: number
+        default: 70
     secrets:
       GH_TOKEN:
         description: "The token that identifies the actor who triggered the workflow"
@@ -72,6 +77,9 @@ jobs:
         with:
           RESUME: ${{ inputs.RESUME }}
           APILAYER_API_KEY: ${{ secrets.APILAYER_API_KEY }}
+          ATS_THRESHOLD: ${{ inputs.ATS_THRESHOLD }}
+          # No COMMENT_KEY: ats-check names the comment after the RESUME file,
+          # so a matrix over several PDFs keeps one ATS comment per resume.
           # The combined comment has no ATS section, so ATS posts its own.
           # It needs a PR-triggered caller; explicit values because this
           # workflow's own token is read-only.

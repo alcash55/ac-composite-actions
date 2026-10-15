@@ -25,6 +25,19 @@ describe("action.yml PR comment wiring", () => {
     expect(commentStep.if).toContain("steps.ats_check.outcome == 'success'");
   });
 
+  it("keys the comment per resume and passes the key to pr-comment", () => {
+    expect(doc.inputs.COMMENT_KEY.default).toBe("");
+    expect(commentStep.with.COMMENT_KEY).toBe("${{ steps.ats_check.outputs.ATS_COMMENT_KEY }}");
+    const checkStep = steps.find((step) => step.id === "ats_check");
+    expect(checkStep.env.COMMENT_KEY).toBe("${{ inputs.COMMENT_KEY }}");
+  });
+
+  it("defaults the threshold to 70 and hands it to the script", () => {
+    const checkStep = steps.find((step) => step.id === "ats_check");
+    expect(doc.inputs.ATS_THRESHOLD.default).toBe("70");
+    expect(checkStep.env.ATS_THRESHOLD).toBe("${{ inputs.ATS_THRESHOLD }}");
+  });
+
   it("can be turned off, and is on by default", () => {
     expect(doc.inputs.COMMENT_ON_PR.default).toBe("true");
     expect(commentStep.with.COMMENT_ON_PR).toBe("${{ inputs.COMMENT_ON_PR }}");

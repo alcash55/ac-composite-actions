@@ -7,8 +7,44 @@ const RESUME_PATH = process.env.RESUME;
 const API_KEY = process.env.RESUME_PARSER_API_KEY;
 const API_URL = "https://api.apilayer.com/resume_parser/upload";
 
-/** Minimum score to be considered ATS-passing */
-const PASSING_SCORE = 70;
+/** Minimum score to be considered ATS-passing when the caller sets no threshold */
+export const DEFAULT_PASSING_SCORE = 70;
+
+/**
+ * Reads the ATS_THRESHOLD input. Empty means the default, so callers that
+ * never heard of the input keep passing at 70.
+ * @param {string | undefined} raw
+ * @returns {number} integer 0-100
+ * @throws {Error} naming the bad value
+ */
+export function parseThreshold(raw) {
+  const text = (raw ?? "").trim();
+  if (text === "") {
+    return DEFAULT_PASSING_SCORE;
+  }
+  const value = Number(text);
+  if (!/^\d+$/.test(text) || value > 100) {
+    throw new Error(
+      `ATS_THRESHOLD must be an integer from 0 to 100, received "${raw}"`,
+    );
+  }
+  return value;
+}
+
+/**
+ * Name that tells this resume's PR comment apart from other resumes' on the
+ * same PR: the explicit COMMENT_KEY, else the filename without its extension.
+ * pr-comment slugifies it into the marker.
+ * @param {string} resumePath
+ * @param {string | undefined} commentKey
+ * @returns {string}
+ */
+export function commentKeyFor(resumePath, commentKey) {
+  if (commentKey?.trim()) {
+    return commentKey.trim();
+  }
+  return path.basename(resumePath ?? "", path.extname(resumePath ?? ""));
+}
 
 /**
  * Uploads the resume PDF to the APILayer Resume Parser and returns the parsed data.
@@ -171,9 +207,16 @@ export function scoreResume(data) {
  * @param {Object} breakdown
  * @param {string[]} issues
  * @param {boolean} passed
+ * @param {number} [threshold] - minimum passing score
  * @returns {string}
  */
-export function buildMarkdownReport(score, breakdown, issues, passed) {
+export function buildMarkdownReport(
+  score,
+  breakdown,
+  issues,
+  passed,
+  threshold = DEFAULT_PASSING_SCORE,
+) {
   const badge = passed ? "✅ PASSED" : "❌ NEEDS WORK";
   const lines = [
     `# ATS Compatibility Report ${badge}`,
@@ -201,7 +244,7 @@ export function buildMarkdownReport(score, breakdown, issues, passed) {
     );
   }
 
-  lines.push(`_Passing threshold: ${PASSING_SCORE}/100_`);
+  lines.push(`_Passing threshold: ${threshold}/100_`);
   return lines.join("\n");
 }
 
@@ -211,23 +254,37 @@ export function buildMarkdownReport(score, breakdown, issues, passed) {
 // guard as markdown-checks/spellcheck/index.js.
 if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
   try {
+    const threshold = parseThreshold(process.env.ATS_THRESHOLD);
     const data = await parseResume();
 
     core.info("Resume parsed successfully. Scoring ATS compatibility...");
 
     const { score, breakdown, issues } = scoreResume(data);
-    const passed = score >= PASSING_SCORE;
-    const report = buildMarkdownReport(score, breakdown, issues, passed);
+    const passed = score >= threshold;
+    const report = buildMarkdownReport(
+      score,
+      breakdown,
+      issues,
+      passed,
+      threshold,
+    );
 
     core.info(`\n${report}`);
 
     core.setOutput("ATS_SCORE", String(score));
     core.setOutput("ATS_REPORT", report);
     core.setOutput("ATS_PASSED", String(passed));
+    // Not declared as action outputs: they ride along in the outputs JSON
+    // that pr-comment reads, naming the resume in the heading and the marker.
+    core.setOutput("ATS_RESUME", path.basename(RESUME_PATH));
+    core.setOutput(
+      "ATS_COMMENT_KEY",
+      commentKeyFor(RESUME_PATH, process.env.COMMENT_KEY),
+    );
 
     if (!passed) {
       core.warning(
-        `ATS score ${score}/100 is below the passing threshold of ${PASSING_SCORE}.`,
+        `ATS score ${score}/100 is below the passing threshold of ${threshold}.`,
       );
     } else {
       core.notice(`ATS score ${score}/100 — passed!`);

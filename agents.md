@@ -143,7 +143,9 @@ A checker that has a result an author should see ends with a `notifications/pr-c
 (see `markdown-checks/spellcheck/action.yml`). Give it a `KIND`, add a formatter to
 `notifications/github-comments/format-comment/index.js`, and add `COMMENT_ON_PR` (default
 `"true"`), `GH_TOKEN`, `GITHUB_ORG`, and `PR_NUMBER` inputs. The hidden marker comes from `KIND`, so
-two checks never overwrite each other. Do not post checker comments through `delete-comment` and
+two checks never overwrite each other. A check a caller may run several times on one PR (a matrix
+over files) also takes `COMMENT_KEY` and forwards it; pr-comment slugifies it and appends it to the
+marker (`ats-fullstack`). Without it, the runs overwrite each other. Do not post checker comments through `delete-comment` and
 `send-comment`: they match by heading and one check can delete another's comment. Never interpolate
 PR content into a comment without `codeSpan` or `escapeText`. Rebuild `notifications/dist` with
 `bun run build` after any change under `notifications/github-comments`.

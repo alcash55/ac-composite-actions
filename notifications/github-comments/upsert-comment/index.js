@@ -31,6 +31,40 @@ export function markerFor(key) {
 }
 
 /**
+ * Turns free text (a resume filename, a route name) into a marker-safe slug:
+ * lowercase letters, digits, single hyphens. Capped so a long path cannot
+ * make the marker unwieldy.
+ * @param {unknown} value
+ * @returns {string} '' when nothing usable is left
+ */
+export function slugify(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+    .replace(/-+$/, '');
+}
+
+/**
+ * Combines the check name with an optional COMMENT_KEY, so one check run
+ * several times on a PR (three resumes, two axe sites) gets one comment each.
+ * @param {string} kind
+ * @param {string} [commentKey]
+ * @returns {string} the marker name, e.g. `ats-fullstack`
+ */
+export function markerName(kind, commentKey = '') {
+  if (!commentKey.trim()) {
+    return kind;
+  }
+  const slug = slugify(commentKey);
+  if (!slug) {
+    throw new Error(`COMMENT_KEY needs at least one letter or digit, received "${commentKey}"`);
+  }
+  return `${kind}-${slug}`;
+}
+
+/**
  * Reads and validates the environment variables this script depends on.
  * @returns {{ owner: string, repo: string, prNumber: number, token: string, marker: string, message: string }}
  */
@@ -58,7 +92,7 @@ export function readConfig(env = process.env) {
     repo,
     prNumber,
     token: env.GH_TOKEN,
-    marker: markerFor(env.MARKER),
+    marker: markerFor(markerName(env.MARKER, env.COMMENT_KEY ?? '')),
     message: (env.MESSAGE ?? '').trim(),
   };
 }
