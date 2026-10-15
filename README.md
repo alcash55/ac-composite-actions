@@ -111,8 +111,54 @@ Tests cover PR commit selection, shallow history, checksum rejection, redaction,
 and, with the binary supplied, real AWS fixtures, old-history exclusion, config
 errors, and consumer allowlists. The committed bundle avoids installs at runtime.
 
-Roll out to Portfolio after this action and its comment formatter reach `main`.
-Run a full scan first and triage findings before enabling it in more consumers.
+For repository rollout, use both reusable workflows below. The scan has only
+read permission and uploads its redacted result even when findings fail it.
+The reporter runs separately after completion with comment permission, including
+for fork and Dependabot PRs. The reporter file must reach the default branch
+before GitHub will trigger it. Rollout PRs pin a reviewed commit SHA instead of
+`@main` so their scanner and reporter stay on the same implementation.
+
+`.github/workflows/secret-scan.yml`:
+
+```yaml
+name: Secret scan
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: secret-scan-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  secrets:
+    uses: alcash55/ac-composite-actions/.github/workflows/security-analysis.yml@main
+```
+
+`.github/workflows/secret-scan-comment.yml`:
+
+```yaml
+name: Secret scan comment
+on:
+  workflow_run:
+    workflows: [Secret scan]
+    types: [completed]
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+jobs:
+  comment:
+    uses: alcash55/ac-composite-actions/.github/workflows/security-comment.yml@main
+```
+
+Adjust the push branch to the consumer's default branch. Pushes and manual runs
+scan full history; PRs scan only their commits. No PAT or inherited secrets are
+needed. A config or download error that produces no report remains a failed
+scan, and the reporter notes the missing artifact instead of deleting an older
+finding comment.
 
 ---
 

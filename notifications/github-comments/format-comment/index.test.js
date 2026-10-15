@@ -335,6 +335,12 @@ describe('formatComment', () => {
     expect(formatComment('secrets', '[]')).toBe('');
   });
 
+  it('reports the total when the artifact caps the finding list', () => {
+    const body = formatComment('secrets', JSON.stringify({ total: 150, findings: [{ file: 'a.env', line: 1, rule: 'aws', commit: 'abc' }] }));
+    expect(body).toContain('150 finding(s)');
+    expect(body).toContain('Showing the first 1 findings');
+  });
+
   it('rejects an unknown kind and lists the valid ones', () => {
     expect(() => formatComment('nope', '[]')).toThrow('KIND must be one of spellcheck, axe, ats, failure, secrets, received "nope"');
   });
