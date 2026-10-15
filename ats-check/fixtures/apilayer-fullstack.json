@@ -1,0 +1,92 @@
+{
+  "name": null,
+  "email": "jane.doe@example.com",
+  "phone": "+1 555 010 0100",
+  "skills": [
+    "Cloud",
+    "Ui",
+    "Css",
+    "Docker",
+    "System",
+    "Iso",
+    "Engineering",
+    "Software engineering",
+    "Excel",
+    "Data analytics",
+    "Rest",
+    "Github",
+    "Analytics",
+    "Health",
+    "Api",
+    "Python",
+    "Linux",
+    "Design",
+    "Postgresql",
+    "Etl",
+    "Pr",
+    "Mobile",
+    "Apis"
+  ],
+  "education": [
+    {
+      "name": "Middle School",
+      "dates": [
+        "February 2001",
+        "February 2002"
+      ],
+      "date_start": "February 2001",
+      "date_end": "February 2002"
+    },
+    {
+      "name": "Robert Morris University",
+      "dates": [
+        "March 1978"
+      ]
+    }
+  ],
+  "experience": [
+    {
+      "title": "Software Engineer",
+      "organization": "SUMMARY"
+    },
+    {
+      "title": "Lacrosse Coach",
+      "dates": [
+        "February 2001",
+        "February 2002",
+        "February 2002",
+        "February 2002"
+      ],
+      "organization": "Middle School"
+    },
+    {
+      "title": "Software Engineer",
+      "dates": [
+        "February 2002"
+      ],
+      "organization": "Solea Energy"
+    },
+    {
+      "title": "Software Engineer",
+      "dates": [
+        "March 1978"
+      ],
+      "organization": "CI"
+    },
+    {
+      "title": "Software Engineer",
+      "location": "React",
+      "organization": "Google"
+    },
+    {
+      "title": "UI Engineer",
+      "location": "React",
+      "organization": "GitHub"
+    },
+    {
+      "title": "Software Engineer",
+      "location": "React",
+      "organization": "NCR Voyix Corporation"
+    }
+  ]
+}
