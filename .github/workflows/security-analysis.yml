@@ -15,7 +15,7 @@ jobs:
           persist-credentials: false
       # Run the trusted scanner binary against source as data. Do not install
       # consumer packages or run consumer scripts in this job.
-      - uses: alcash55/ac-composite-actions/security/betterleaks@fa48a8081ab97249664f9cdd82e43954e4dafcf5
+      - uses: alcash55/ac-composite-actions/security/betterleaks@7ce01db45523bcbcacc3408615994686d78fb82b
         id: scan
         with:
           COMMENT_ON_PR: "false"

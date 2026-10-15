@@ -160,6 +160,9 @@ needed. A config or download error that produces no report remains a failed
 scan, and the reporter notes the missing artifact instead of deleting an older
 finding comment.
 
+See [the rollout record](security/betterleaks/rollout.md) for all consumer PRs,
+hosted scan results, and the live comment lifecycle validation.
+
 ---
 
 ## `diff`
