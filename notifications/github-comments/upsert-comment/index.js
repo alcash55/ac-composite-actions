@@ -180,6 +180,10 @@ export async function run(env = process.env) {
     const octokit = new Octokit({ auth: config.token });
     return await upsertComment(octokit, config);
   } catch (e) {
+    if (env.FAIL_ON_ERROR === 'true') {
+      core.setFailed(`Could not post the PR comment: ${describeError(e)}`);
+      return undefined;
+    }
     core.warning(`Skipped the PR comment: ${describeError(e)}`);
     return undefined;
   }
