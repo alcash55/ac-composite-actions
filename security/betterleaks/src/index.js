@@ -100,6 +100,12 @@ export function summary({ mode, findings }) {
   return lines.join('\n');
 }
 
+export function reportFindings(findings) {
+  return findings.slice(0, 100).map((f) => ({
+    ...f, file: f.file.slice(0, 200), rule: f.rule.slice(0, 100),
+  }));
+}
+
 export async function run(env = process.env) {
   const directory = mkdtempSync(join(tmpdir(), 'betterleaks-'));
   try {
@@ -113,9 +119,7 @@ export async function run(env = process.env) {
       const reportDir = mkdtempSync(join(env.RUNNER_TEMP || tmpdir(), 'betterleaks-result-'));
       const path = join(reportDir, 'result.json');
       // Bound the artifact and environment output used by the privileged reporter.
-      const findings = result.findings.slice(0, 100).map((f) => ({
-        ...f, file: f.file.slice(0, 500), rule: f.rule.slice(0, 100),
-      }));
+      const findings = reportFindings(result.findings);
       writeFileSync(path, JSON.stringify({
         version: 1, runId: env.GITHUB_RUN_ID, prNumber: event.number,
         headSha: event.pull_request.head.sha, total: result.findings.length, findings,

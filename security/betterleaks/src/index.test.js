@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 process.env.NODE_ENV = 'test';
-const { scanOptions, scan, summary, verifyChecksum, install } = await import('./index.js');
+const { scanOptions, scan, summary, verifyChecksum, install, reportFindings } = await import('./index.js');
 const key = 'AKIA' + 'Q7WE2R3TY4U5I6OP';
 const credentials = `AWS_ACCESS_KEY_ID=${key}\nAWS_SECRET_ACCESS_KEY=${'aB3dE5gH7jK9mN2pQ4sT6vW8yZ0cF1iL3oR5uX7z'}\n`;
 
@@ -69,6 +69,12 @@ test('summary escapes untrusted metadata and never uses the scanner match', () =
   assert.ok(!output.includes('<img>'));
   assert.ok(!output.includes('@user'));
   assert.match(output, /REDACTED/);
+});
+
+test('maximum Unicode metadata stays below the reporter and environment byte limits', () => {
+  const findings = reportFindings(Array.from({ length: 150 }, () => ({ file: '\u0800'.repeat(4000), rule: '\u0800'.repeat(4000), line: Number.MAX_SAFE_INTEGER, commit: 'a'.repeat(40), match: '[REDACTED]' })));
+  assert.equal(findings.length, 100);
+  assert.ok(Buffer.byteLength(JSON.stringify({ findings, total: 150 })) < 110000);
 });
 
 const binary = process.env.BETTERLEAKS_TEST_BINARY;
