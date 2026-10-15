@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+[[rules]]
+id = 'comment-validation-fixture'
+regex = '''BETTERLEAKS_TEST_FIXTURE=(not-a-real-secret)'''
+secretGroup = 1
+keywords = ['betterleaks_test_fixture']
