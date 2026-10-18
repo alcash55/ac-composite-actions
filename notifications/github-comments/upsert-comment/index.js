@@ -66,7 +66,7 @@ export function markerName(kind, commentKey = '') {
 
 /**
  * Reads and validates the environment variables this script depends on.
- * @returns {{ owner: string, repo: string, prNumber: number, token: string, marker: string, message: string }}
+ * @returns {{ owner: string, repo: string, prNumber: number, token: string, marker: string, message: string, headSha?: string }}
  */
 export function readConfig(env = process.env) {
   const missing = ['ORG', 'PR_NUMBER', 'GH_TOKEN', 'MARKER'].filter((key) => !env[key]);
@@ -87,6 +87,10 @@ export function readConfig(env = process.env) {
     throw new Error(`PR_NUMBER must be a positive integer, received "${env.PR_NUMBER}"`);
   }
 
+  if (env.HEAD_SHA && !/^[a-f0-9]{40}$/i.test(env.HEAD_SHA)) {
+    throw new Error('HEAD_SHA must be a full commit SHA');
+  }
+
   return {
     owner,
     repo,
@@ -94,6 +98,7 @@ export function readConfig(env = process.env) {
     token: env.GH_TOKEN,
     marker: markerFor(markerName(env.MARKER, env.COMMENT_KEY ?? '')),
     message: (env.MESSAGE ?? '').trim(),
+    ...(env.HEAD_SHA ? { headSha: env.HEAD_SHA.toLowerCase() } : {}),
   };
 }
 
@@ -113,9 +118,9 @@ export function findMarked(comments, marker) {
  * Applies the upsert. Split from run() so tests can hand it a fake octokit.
  * @param {InstanceType<typeof Octokit>} octokit
  * @param {ReturnType<typeof readConfig>} config
- * @returns {Promise<'created' | 'updated' | 'deleted' | 'unchanged'>}
+ * @returns {Promise<'created' | 'updated' | 'deleted' | 'unchanged' | 'stale'>}
  */
-export async function upsertComment(octokit, { owner, repo, prNumber, marker, message }) {
+export async function upsertComment(octokit, { owner, repo, prNumber, marker, message, headSha }) {
   // Paginate: a busy PR passes the 30 comments a bare listComments returns,
   // and the marked comment would silently stop being found.
   const comments = await octokit.paginate(octokit.rest.issues.listComments, {
@@ -124,6 +129,17 @@ export async function upsertComment(octokit, { owner, repo, prNumber, marker, me
     issue_number: prNumber,
     per_page: 100,
   });
+
+  // A slow run for an earlier push must not overwrite or delete newer results.
+  // Check after reading comments, immediately before any writes. Caller-side
+  // concurrency cancellation also prevents superseded runs from publishing.
+  if (headSha) {
+    const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+    if (pr.state !== 'open' || pr.head.sha !== headSha) {
+      core.notice(`Skipped results for superseded commit ${headSha}`);
+      return 'stale';
+    }
+  }
 
   const [current, ...duplicates] = findMarked(comments, marker);
 
@@ -141,7 +157,7 @@ export async function upsertComment(octokit, { owner, repo, prNumber, marker, me
     return 'deleted';
   }
 
-  const body = `${marker}\n${message}`;
+  const body = `${marker}\n${message}${headSha ? `\n\n_Checked commit: \`${headSha}\`._` : ''}`;
 
   if (!current) {
     const { data } = await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
