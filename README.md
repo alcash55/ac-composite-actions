@@ -432,6 +432,10 @@ request on their own, so the author sees what failed without opening the run log
 
 - **When:** only when the workflow runs on `pull_request` or `pull_request_target`, and
   `COMMENT_ON_PR` is not `false`.
+  Callers must include the `synchronize` activity so pushes rerun the checks.
+  Plain `pull_request:` includes it by default. If `types` is set explicitly,
+  include `opened`, `reopened`, and `synchronize`. Avoid path filters that can
+  skip a rerun needed to clear a previous result.
 - **What:** spellcheck lists each misspelled word with up to 3 cspell suggestions and a `file:line` link to the line at the PR head commit (plain text when the repo or commit is unknown). axe lists each rule with
   impact, element count, help link, and the first three selectors, per route. ATS shows the score
   once in its heading, then the breakdown and recommendations. Long lists are cut under GitHub's size limit with a "N more not shown" line.
@@ -443,8 +447,14 @@ request on their own, so the author sees what failed without opening the run log
   itself from the resume filename, and its heading names the file: `ATS check (fullstack.pdf):
   needs work (88/100)`. Spellcheck and axe take `COMMENT_KEY` but default to one shared comment.
 - **A clean run removes the old comment** so fixed errors do not linger. ATS always keeps its comment,
-  since a passing score is still the result. If the check did not run at all (spellcheck with no
-  changed files), the existing comment stays.
+  since a passing score is still the result. An empty source-mode diff also clears
+  the previous spelling comment. A failed check does not count as a clean result.
+- **Commit freshness:** each result names the PR head commit it checked, even when
+  the score is unchanged. Before creating, updating, or deleting a comment, the
+  reporter checks that the PR is still open at that commit. Superseded runs skip
+  their writes. The API offers no atomic head-check-and-write operation, so callers
+  should also cancel older runs using a concurrency group per PR and check. The
+  resume workflow includes the resume path so matrix variants stay independent.
 - **It never fails the check.** A missing permission, a fork PR, or an API error becomes a
   warning and the step goes on.
 - **Size limit:** the checker output reaches the formatter as an environment variable, and Linux caps one at 128 KB. A larger result (thousands of misspelled files) makes the format step fail with `Argument list too long`, which is tolerated: the check stays green and the comment is not updated.

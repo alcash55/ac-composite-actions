@@ -151,15 +151,16 @@ runs:
         CSPELL_CONFIG_PATH: ${{ github.action_path }}/../.cspell.json
 
     # Own marker (`spellcheck`), so this comment never collides with the axe or ATS
-    # comment on the same PR. Skipped when the
-    # check did not run (nothing to check) or failed.
+    # comment on the same PR. A failed check never clears its previous result.
+    # A PR with no remaining markdown diff is clean too. Clear its previous
+    # comment when the last affected file was removed or reverted.
     - name: Comment on the pull request
       id: comment
-      if: ${{ steps.spellcheck.outcome == 'success' }}
+      if: ${{ success() && (steps.spellcheck.outcome == 'success' || (inputs.SPELLCHECK_MODE == 'source' && inputs.DIFF == '' && inputs.EXTENSIONS == '')) }}
       uses: alcash55/ac-composite-actions/notifications/pr-comment@main
       with:
         KIND: spellcheck
-        DATA: ${{ steps.spellcheck.outputs.SPELL_ERRORS }}
+        DATA: ${{ steps.spellcheck.outputs.SPELL_ERRORS || '[]' }}
         COMMENT_KEY: ${{ inputs.COMMENT_KEY }}
         COMMENT_ON_PR: ${{ inputs.COMMENT_ON_PR }}
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
