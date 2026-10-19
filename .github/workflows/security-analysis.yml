@@ -1,0 +1,29 @@
+name: Secret scan implementation
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  scan:
+    name: Secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # Run the trusted scanner binary against source as data. Do not install
+      # consumer packages or run consumer scripts in this job.
+      - uses: alcash55/ac-composite-actions/security/betterleaks@7ce01db45523bcbcacc3408615994686d78fb82b
+        id: scan
+        with:
+          COMMENT_ON_PR: "false"
+      - name: Save redacted PR result
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.scan.outputs.REPORT_PATH != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-scan-result
+          path: ${{ steps.scan.outputs.REPORT_PATH }}
+          retention-days: 3
+          if-no-files-found: error

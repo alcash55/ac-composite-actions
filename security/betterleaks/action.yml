@@ -1,0 +1,79 @@
+name: Betterleaks secret scan
+description: Scan PR commits or full git history with a checksum-pinned Betterleaks release.
+inputs:
+  MODE:
+    description: diff or full. Empty selects diff for pull_request and full otherwise.
+    default: ""
+  BASE_REF:
+    description: Base ref for diff mode. Defaults to the PR base SHA.
+    default: ""
+  CONFIG_PATH:
+    description: Consumer config. Auto-discovers .betterleaks.toml or .gitleaks.toml when empty.
+    default: ""
+  BETTERLEAKS_VERSION:
+    description: Pinned stable release version. Overrides require BETTERLEAKS_SHA256.
+    default: "1.9.0"
+  BETTERLEAKS_SHA256:
+    description: Archive SHA256 for a version override and runner architecture.
+    default: ""
+  COMMENT_ON_PR:
+    description: Post redacted findings through notifications/pr-comment.
+    default: "true"
+  GH_TOKEN:
+    description: Token for PR comments. Defaults to the job token.
+    default: ""
+  GITHUB_ORG:
+    description: Repository for PR comments. Defaults to github.repository.
+    default: ""
+  PR_NUMBER:
+    description: Pull request to comment on. Defaults to the event PR.
+    default: ""
+outputs:
+  REPORT_PATH:
+    description: Bounded redacted result.json for the separate PR reporter, set on pull_request events.
+    value: ${{ steps.scan.outputs.REPORT_PATH }}
+  FINDINGS:
+    description: JSON array of file, line, rule, commit, and a constant redacted match.
+    value: ${{ steps.scan.outputs.FINDINGS }}
+  HAS_FINDINGS:
+    description: true when the scan found credentials.
+    value: ${{ steps.scan.outputs.HAS_FINDINGS }}
+runs:
+  using: composite
+  steps:
+    - name: Scan secrets
+      id: scan
+      shell: bash
+      run: node "$ACTION_PATH/dist/index.js"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        MODE: ${{ inputs.MODE }}
+        BASE_REF: ${{ inputs.BASE_REF }}
+        CONFIG_PATH: ${{ inputs.CONFIG_PATH }}
+        BETTERLEAKS_VERSION: ${{ inputs.BETTERLEAKS_VERSION }}
+        BETTERLEAKS_SHA256: ${{ inputs.BETTERLEAKS_SHA256 }}
+    # Resolve scripts beside this action so a pinned scanner never calls a
+    # different formatter from @main. Explicit status checks run after findings
+    # fail the scan step, and [] still runs to remove a resolved finding comment.
+    - name: Format PR comment
+      id: format
+      if: ${{ !cancelled() && inputs.COMMENT_ON_PR == 'true' && github.event_name == 'pull_request' && steps.scan.outputs.FINDINGS != '' }}
+      continue-on-error: true
+      shell: bash
+      run: node "$ACTION_PATH/../../notifications/dist/format-comment/index.js"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        KIND: secrets
+        DATA: ${{ steps.scan.outputs.FINDINGS }}
+    - name: Update PR comment
+      if: ${{ !cancelled() && steps.format.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      run: node "$ACTION_PATH/../../notifications/dist/upsert-comment/index.js"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        GH_TOKEN: ${{ inputs.GH_TOKEN || github.token }}
+        ORG: ${{ inputs.GITHUB_ORG || github.repository }}
+        PR_NUMBER: ${{ inputs.PR_NUMBER || github.event.pull_request.number }}
+        MARKER: secrets
+        MESSAGE: ${{ steps.format.outputs.BODY }}
