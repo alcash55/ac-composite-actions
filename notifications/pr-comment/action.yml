@@ -83,4 +83,5 @@ runs:
         PR_NUMBER: ${{ inputs.PR_NUMBER || github.event.pull_request.number }}
         MARKER: ${{ inputs.KIND }}
         COMMENT_KEY: ${{ inputs.COMMENT_KEY }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         MESSAGE: ${{ steps.format.outputs.BODY }}

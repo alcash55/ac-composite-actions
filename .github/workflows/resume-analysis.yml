@@ -38,6 +38,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ac-resume-analysis-${{ github.workflow }}-${{ inputs.PR_NUMBER }}-${{ inputs.RESUME }}
+  cancel-in-progress: true
+
 jobs:
   analysis:
     runs-on: ubuntu-latest
@@ -48,7 +52,7 @@ jobs:
       - name: 📂 Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.BRANCH }}
+          ref: ${{ github.event.pull_request.head.sha || inputs.BRANCH }}
 
       - name: 🔍 Get Diff
         id: diff
@@ -66,10 +70,8 @@ jobs:
           GITHUB_ORG: ${{ inputs.ORG }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           BRANCH: ${{ inputs.BRANCH }}
-          # The combined comment below already carries the spelling errors,
-          # and it works for any trigger that supplies PR_NUMBER. A second
-          # per-action comment would post the same errors twice.
-          COMMENT_ON_PR: "false"
+          PR_NUMBER: ${{ inputs.PR_NUMBER }}
+          COMMENT_KEY: ${{ inputs.RESUME }}
 
       - name: 🖨️ ATS Check
         id: ats_check
@@ -80,28 +82,11 @@ jobs:
           ATS_THRESHOLD: ${{ inputs.ATS_THRESHOLD }}
           # No COMMENT_KEY: ats-check names the comment after the RESUME file,
           # so a matrix over several PDFs keeps one ATS comment per resume.
-          # The combined comment has no ATS section, so ATS posts its own.
           # It needs a PR-triggered caller; explicit values because this
           # workflow's own token is read-only.
           GITHUB_ORG: ${{ inputs.ORG }}
           PR_NUMBER: ${{ inputs.PR_NUMBER }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-
-      - name: ✍🏽 Format Message
-        id: create_msg
-        uses: alcash55/ac-composite-actions/format-message@main
-        with:
-          SPELL_MESSAGE: ${{ steps.spell_check.outputs.SPELL_ERRORS }}
-
-      - name: 🔔 Send Pull Request Comment
-        id: notify
-        uses: alcash55/ac-composite-actions/notifications@main
-        with:
-          GITHUB_ORG: ${{ inputs.ORG }}
-          PR_NUMBER: ${{ inputs.PR_NUMBER }}
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          MESSAGE_TYPE: "github"
-          MESSAGE: ${{ steps.create_msg.outputs.FORMATTED_MESSAGE }}
 
       # The failure notice is keyed by RESUME, so a matrix over several PDFs
       # keeps one notice per resume. The old notice went through the legacy

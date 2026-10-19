@@ -27,12 +27,13 @@ const VALID_ENV = {
 };
 
 /** A fake octokit that records calls and serves a fixed comment list. */
-function fakeOctokit(comments) {
+function fakeOctokit(comments, headSha = 'a'.repeat(40)) {
   const calls = { create: [], update: [], remove: [] };
   return {
     calls,
     paginate: mock(async () => comments),
     rest: {
+      pulls: { get: mock(async () => ({ data: { state: 'open', head: { sha: headSha } } })) },
       issues: {
         listComments: () => {},
         createComment: mock(async (args) => {
@@ -115,6 +116,11 @@ describe('readConfig', () => {
     expect(readConfig({ ...VALID_ENV, MESSAGE: '' }).message).toBe('');
   });
 
+  it('reads the checked commit from the action environment', () => {
+    expect(readConfig({ ...VALID_ENV, HEAD_SHA: 'A'.repeat(40) }).headSha).toBe('a'.repeat(40));
+    expect(() => readConfig({ ...VALID_ENV, HEAD_SHA: 'main' })).toThrow('HEAD_SHA must be a full commit SHA');
+  });
+
   it('names every missing variable', () => {
     expect(() => readConfig({ ORG: 'a/b' })).toThrow('Missing required input(s): PR_NUMBER, GH_TOKEN, MARKER');
   });
@@ -141,6 +147,31 @@ describe('findMarked', () => {
 });
 
 describe('upsertComment', () => {
+  it.each(['old score', ''])('does not publish or delete results from an older commit: %p', async (message) => {
+    const octokit = fakeOctokit([
+      { id: 5, body: `${MARKER}\nlatest score` },
+      { id: 6, body: `${MARKER}\nduplicate` },
+    ], 'b'.repeat(40));
+    expect(await upsertComment(octokit, { ...CONFIG, headSha: 'a'.repeat(40), message })).toBe('stale');
+    expect(octokit.calls).toEqual({ create: [], update: [], remove: [] });
+  });
+
+  it('refreshes the checked commit even when the score stays the same', async () => {
+    const message = '## ATS check: passed (95/100)';
+    const first = fakeOctokit([]);
+    await upsertComment(first, { ...CONFIG, message, headSha: 'a'.repeat(40) });
+    expect(first.calls.create[0].body).toContain('a'.repeat(40));
+    const second = fakeOctokit([{ id: 99, body: first.calls.create[0].body }], 'b'.repeat(40));
+    expect(await upsertComment(second, { ...CONFIG, message, headSha: 'b'.repeat(40) })).toBe('updated');
+    expect(second.calls.create).toHaveLength(0);
+    expect(second.calls.update[0].body).toContain(message);
+    expect(second.calls.update[0].body).toContain('b'.repeat(40));
+    expect(second.calls.update[0].body).not.toContain('a'.repeat(40));
+    const clean = fakeOctokit([{ id: 99, body: second.calls.update[0].body }], 'b'.repeat(40));
+    expect(await upsertComment(clean, { ...CONFIG, message: '', headSha: 'b'.repeat(40) })).toBe('deleted');
+    expect(clean.calls.remove.map((c) => c.comment_id)).toEqual([99]);
+  });
+
   it('creates the comment with the marker on the first line when none exists', async () => {
     const octokit = fakeOctokit([{ id: 1, body: 'unrelated' }]);
 
