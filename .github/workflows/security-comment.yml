@@ -34,7 +34,7 @@ jobs:
             core.setOutput('found', 'true');
       - name: Download redacted result
         if: steps.artifact.outputs.found == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: secret-scan-result
           path: ${{ runner.temp }}/secret-scan-result
