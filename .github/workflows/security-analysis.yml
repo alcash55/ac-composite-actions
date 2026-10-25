@@ -21,7 +21,7 @@ jobs:
           COMMENT_ON_PR: "false"
       - name: Save redacted PR result
         if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.scan.outputs.REPORT_PATH != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: secret-scan-result
           path: ${{ steps.scan.outputs.REPORT_PATH }}
