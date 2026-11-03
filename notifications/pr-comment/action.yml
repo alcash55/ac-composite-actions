@@ -3,7 +3,8 @@ description: >
   Posts a checker action's result (spellcheck, axe, ATS) as one pull request
   comment that later runs update in place, and removes it when the check is
   clean. Used by the checker actions themselves; a caller rarely needs it.
-  Never fails the job: a missing permission or a fork PR becomes a warning.
+  By default it never fails the job: a missing permission or a fork PR becomes
+  a warning. Set FAIL_ON_ERROR to make a failed write fail the job.
 
 inputs:
   KIND:
@@ -39,9 +40,16 @@ inputs:
     required: false
     default: ""
   PR_NUMBER:
-    description: Pull request to comment on. Defaults to the PR that triggered the workflow.
+    description: >
+      Pull request to comment on. Defaults to the PR that triggered the workflow.
+      A workflow_run reporter has no PR event, so it passes the number it verified
+      and that is what lets the action comment there.
     required: false
     default: ""
+  FAIL_ON_ERROR:
+    description: Set to 'true' to fail the job when the comment cannot be formatted or written. A reporter job whose only work is the comment wants this.
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -51,15 +59,21 @@ runs:
     # by `uses: .../notifications@main`: this action and the scripts always
     # come from the same ref, so a branch that changes both stays consistent.
     #
-    # The gate is a PR event plus the opt-out. A push or schedule run has no
-    # PR to comment on, and pull_request_target is allowed because its token
-    # can write even for fork PRs.
+    # Both gates start with !cancelled(): without a status function GitHub adds
+    # success(), which reads the job status. A scan that found secrets has already
+    # failed the job, and that is exactly when the comment must still post.
+    #
+    # The gate is the opt-out plus either a PR event or a PR_NUMBER the caller
+    # passed. A push or schedule run with neither has no PR to comment on, and
+    # pull_request_target is allowed because its token can write even for fork
+    # PRs. A workflow_run reporter passes the PR number it verified.
     - name: Format PR comment
       id: format
       shell: bash
-      if: ${{ inputs.COMMENT_ON_PR == 'true' && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
-      # A formatting error must not fail the check it is reporting on.
-      continue-on-error: true
+      if: ${{ !cancelled() && inputs.COMMENT_ON_PR == 'true' && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target' || inputs.PR_NUMBER != '') }}
+      # A formatting error must not fail the check it is reporting on, unless the
+      # caller is a reporter whose only job is the comment.
+      continue-on-error: ${{ inputs.FAIL_ON_ERROR != 'true' }}
       run: |
         node "${{ github.action_path }}/../dist/format-comment/index.js"
       env:
@@ -73,11 +87,12 @@ runs:
     - name: Upsert PR comment
       id: upsert
       shell: bash
-      if: ${{ steps.format.outcome == 'success' }}
-      continue-on-error: true
+      if: ${{ !cancelled() && steps.format.outcome == 'success' }}
+      continue-on-error: ${{ inputs.FAIL_ON_ERROR != 'true' }}
       run: |
         node "${{ github.action_path }}/../dist/upsert-comment/index.js"
       env:
+        FAIL_ON_ERROR: ${{ inputs.FAIL_ON_ERROR }}
         GH_TOKEN: ${{ inputs.GH_TOKEN || github.token }}
         ORG: ${{ inputs.GITHUB_ORG || github.repository }}
         PR_NUMBER: ${{ inputs.PR_NUMBER || github.event.pull_request.number }}

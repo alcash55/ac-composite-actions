@@ -52,28 +52,15 @@ runs:
         CONFIG_PATH: ${{ inputs.CONFIG_PATH }}
         BETTERLEAKS_VERSION: ${{ inputs.BETTERLEAKS_VERSION }}
         BETTERLEAKS_SHA256: ${{ inputs.BETTERLEAKS_SHA256 }}
-    # Resolve scripts beside this action so a pinned scanner never calls a
-    # different formatter from @main. Explicit status checks run after findings
-    # fail the scan step, and [] still runs to remove a resolved finding comment.
-    - name: Format PR comment
-      id: format
-      if: ${{ !cancelled() && inputs.COMMENT_ON_PR == 'true' && github.event_name == 'pull_request' && steps.scan.outputs.FINDINGS != '' }}
-      continue-on-error: true
-      shell: bash
-      run: node "$ACTION_PATH/../../notifications/dist/format-comment/index.js"
-      env:
-        ACTION_PATH: ${{ github.action_path }}
+    # Explicit status checks run after findings fail the scan step, and [] still runs
+    # to remove a resolved finding comment.
+    - name: Comment on PR
+      if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.scan.outputs.FINDINGS != '' }}
+      uses: alcash55/ac-composite-actions/notifications/pr-comment@main
+      with:
         KIND: secrets
         DATA: ${{ steps.scan.outputs.FINDINGS }}
-    - name: Update PR comment
-      if: ${{ !cancelled() && steps.format.outcome == 'success' }}
-      continue-on-error: true
-      shell: bash
-      run: node "$ACTION_PATH/../../notifications/dist/upsert-comment/index.js"
-      env:
-        ACTION_PATH: ${{ github.action_path }}
-        GH_TOKEN: ${{ inputs.GH_TOKEN || github.token }}
-        ORG: ${{ inputs.GITHUB_ORG || github.repository }}
-        PR_NUMBER: ${{ inputs.PR_NUMBER || github.event.pull_request.number }}
-        MARKER: secrets
-        MESSAGE: ${{ steps.format.outputs.BODY }}
+        COMMENT_ON_PR: ${{ inputs.COMMENT_ON_PR }}
+        GH_TOKEN: ${{ inputs.GH_TOKEN }}
+        GITHUB_ORG: ${{ inputs.GITHUB_ORG }}
+        PR_NUMBER: ${{ inputs.PR_NUMBER }}

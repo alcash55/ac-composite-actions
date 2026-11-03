@@ -116,7 +116,8 @@ read permission and uploads its redacted result even when findings fail it.
 The reporter runs separately after completion with comment permission, including
 for fork and Dependabot PRs. The reporter file must reach the default branch
 before GitHub will trigger it. Rollout PRs pin a reviewed commit SHA instead of
-`@main` so their scanner and reporter stay on the same implementation.
+`@main` for the scan and reporter actions. Both still post through
+`notifications/pr-comment@main`, so the comment format follows `main`.
 
 `.github/workflows/secret-scan.yml`:
 
@@ -507,7 +508,8 @@ the comment by adding nothing. Call it directly only to comment on output from y
 | `COMMENT_ON_PR` | — | `true` | `false` turns commenting off |
 | `GH_TOKEN` | — | the job's `GITHUB_TOKEN` | Token that can write PR comments |
 | `GITHUB_ORG` | — | the running repo | `<owner>/<repo>` |
-| `PR_NUMBER` | — | the triggering PR | Pull request number |
+| `PR_NUMBER` | — | the triggering PR | Pull request number. Setting it lets a `workflow_run` reporter comment, since its own event is not a PR event |
+| `FAIL_ON_ERROR` | — | `false` | `true` fails the job when the comment can't be posted. A reporter that has nothing else to do sets it so a failed post is visible |
 
 It runs the committed `notifications/dist` bundles by relative path rather than through
 `uses: .../notifications@main`, so the action and its scripts always come from the same ref.
