@@ -116,7 +116,8 @@ read permission and uploads its redacted result even when findings fail it.
 The reporter runs separately after completion with comment permission, including
 for fork and Dependabot PRs. The reporter file must reach the default branch
 before GitHub will trigger it. Rollout PRs pin a reviewed commit SHA instead of
-`@main` so their scanner and reporter stay on the same implementation.
+`@main` for the scan and reporter actions. Both still post through
+`notifications/pr-comment@main`, so the comment format follows `main`.
 
 `.github/workflows/secret-scan.yml`:
 

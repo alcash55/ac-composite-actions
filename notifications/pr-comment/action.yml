@@ -59,6 +59,10 @@ runs:
     # by `uses: .../notifications@main`: this action and the scripts always
     # come from the same ref, so a branch that changes both stays consistent.
     #
+    # Both gates start with !cancelled(): without a status function GitHub adds
+    # success(), which reads the job status. A scan that found secrets has already
+    # failed the job, and that is exactly when the comment must still post.
+    #
     # The gate is the opt-out plus either a PR event or a PR_NUMBER the caller
     # passed. A push or schedule run with neither has no PR to comment on, and
     # pull_request_target is allowed because its token can write even for fork
@@ -66,7 +70,7 @@ runs:
     - name: Format PR comment
       id: format
       shell: bash
-      if: ${{ inputs.COMMENT_ON_PR == 'true' && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target' || inputs.PR_NUMBER != '') }}
+      if: ${{ !cancelled() && inputs.COMMENT_ON_PR == 'true' && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target' || inputs.PR_NUMBER != '') }}
       # A formatting error must not fail the check it is reporting on, unless the
       # caller is a reporter whose only job is the comment.
       continue-on-error: ${{ inputs.FAIL_ON_ERROR != 'true' }}
@@ -83,7 +87,7 @@ runs:
     - name: Upsert PR comment
       id: upsert
       shell: bash
-      if: ${{ steps.format.outcome == 'success' }}
+      if: ${{ !cancelled() && steps.format.outcome == 'success' }}
       continue-on-error: ${{ inputs.FAIL_ON_ERROR != 'true' }}
       run: |
         node "${{ github.action_path }}/../dist/upsert-comment/index.js"

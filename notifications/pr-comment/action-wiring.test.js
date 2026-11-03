@@ -25,7 +25,13 @@ describe('pr-comment action.yml', () => {
   });
 
   it('still honors the COMMENT_ON_PR opt-out for both paths', () => {
-    expect(stepGate('Format PR comment')).toMatch(/^\$\{\{ inputs\.COMMENT_ON_PR == 'true' &&/);
+    expect(stepGate('Format PR comment')).toMatch(/^\$\{\{ !cancelled\(\) && inputs\.COMMENT_ON_PR == 'true' &&/);
+  });
+
+  it('runs both steps after an earlier step failed the job, so findings still get a comment', () => {
+    // No status function means an implicit success(), which skips them once a scan has failed.
+    expect(stepGate('Format PR comment')).toContain('!cancelled()');
+    expect(stepGate('Upsert PR comment')).toContain('!cancelled()');
   });
 
   it('declares FAIL_ON_ERROR, off by default, and hands it to the upsert script', () => {
