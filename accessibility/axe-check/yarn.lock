@@ -30,12 +30,12 @@
   resolved "https://registry.yarnpkg.com/@actions/io/-/io-3.0.2.tgz#6f89b27a159d109836d983efa283997c23b92284"
   integrity sha512-nRBchcMM+QK1pdjO7/idu86rbJI5YHUKCvKs0KxnSYbVe3F51UfGxuZX4Qy/fWlp6l7gWFwIkrOzN+oUK03kfw==
 
-"@axe-core/playwright@^4.13.0":
-  version "4.13.0"
-  resolved "https://registry.yarnpkg.com/@axe-core/playwright/-/playwright-4.13.0.tgz#4826467c9622df26f0d75b4c1747c8d92ee599de"
-  integrity sha512-6YLx+kxXu5GJceG4ozFg+33a2EMTdjYwWGloJ3sb9Kta5pp+ZNS53uxGVog5JetIY8s++P5UrtX+cri+u0VAVg==
+"@axe-core/playwright@^4.14.0":
+  version "4.14.0"
+  resolved "https://registry.yarnpkg.com/@axe-core/playwright/-/playwright-4.14.0.tgz#a137c84ad18cf1ec17b5458f300a6e370444fbe5"
+  integrity sha512-SGUhG5PIHd2eMdpgBF2PyQLOhX+qyDR2PT4cmoS4Qk2ak+jX/rrSvst9l0PGv5WTHolKpUMvVmoHpr4cZgf1RQ==
   dependencies:
-    axe-core "~4.13.0"
+    axe-core "~4.14.0"
 
 "@esbuild/aix-ppc64@0.21.5":
   version "0.21.5"
@@ -488,10 +488,10 @@ assertion-error@^2.0.1:
   resolved "https://registry.yarnpkg.com/assertion-error/-/assertion-error-2.0.1.tgz#f641a196b335690b1070bf00b6e7593fec190bf7"
   integrity sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==
 
-axe-core@~4.13.0:
-  version "4.13.0"
-  resolved "https://registry.yarnpkg.com/axe-core/-/axe-core-4.13.0.tgz#f868ecb1bd61d982321760e51d841ab497ab86d0"
-  integrity sha512-UzGt8zg7Ny8djbYMhxl2zuEevVa7r2gJjYY5Lwr1xM7+XU2nd6CkIWFTVcCIbAP63vSz71NaVyyuSk9lHKcy0A==
+axe-core@~4.14.0:
+  version "4.14.0"
+  resolved "https://registry.yarnpkg.com/axe-core/-/axe-core-4.14.0.tgz#a9819d3932a8198fbe935d8cbd8afcdfecbcf31d"
+  integrity sha512-9WTZxEjsZ7b13TH8JPmbV2z8CHbl80/2hm3XPEG4JgNdQLK81IBRXmSxHfMAOkSqQeRxT/0dwNDz2GOm3zzpcQ==
 
 cac@^6.7.14:
   version "6.7.14"
