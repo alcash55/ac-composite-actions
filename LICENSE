@@ -1,0 +1,39 @@
+MIT License
+
+Copyright (c) 2026 Alex Cash
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## Scope: the code, not the person
+
+The MIT licence above covers the **source code** of this repository.
+
+It does **not** cover the personal content the repository happens to contain, all rights to which
+are reserved:
+
+- Personal photographs, including the images under `frontend/src/assets/images/`
+- Biographical and written content — the About and Experience copy, and any text describing
+  Alex Cash's history, employment, education, or opinions
+- The résumé (`frontend/src/assets/AlexResume.pdf`) and its contents
+- The "AC" monogram and any other personal branding or identity marks
+
+You are welcome to read, fork, learn from, and reuse the code. Please do not republish the personal
+content, and do not present this site, its branding, or its biography as your own.
