@@ -1,0 +1,53 @@
+name: Bitwarden secrets
+description: >
+  Fetches secrets from Bitwarden Secrets Manager, whose Free plan covers this
+  use, and exports them as masked environment variables for later steps.
+inputs:
+  ACCESS_TOKEN:
+    description: >
+      Machine account access token. Create one for a Secrets Manager machine
+      account and store it as a repository secret, then pass
+      secrets.BW_ACCESS_TOKEN. This is the only value that stays in GitHub.
+    required: true
+  PROJECT_ID:
+    description: >
+      Fetch every secret in this project. Each secret's key becomes its
+      environment variable name, so keys must look like DB_PASSWORD. Empty
+      disables project mode.
+    default: ""
+  SECRETS:
+    description: >
+      Newline separated "SECRET_ID > ENV_NAME" pairs, one per line, matching
+      the official Bitwarden action. Use it for a secret outside PROJECT_ID,
+      or to export one under a different name. Empty disables explicit mode.
+    default: ""
+  BASE_URL:
+    description: >
+      Base URL for EU cloud (https://vault.bitwarden.eu) or a self-hosted
+      server. Leave empty for the US cloud default.
+    default: ""
+  BWS_VERSION:
+    description: Pinned bws CLI version. An override requires BWS_SHA256.
+    default: "2.1.0"
+  BWS_SHA256:
+    description: Archive SHA256 for a version override on this runner architecture.
+    default: ""
+outputs:
+  KEYS:
+    description: JSON array of the environment variable names that were set.
+    value: ${{ steps.fetch.outputs.KEYS }}
+runs:
+  using: composite
+  steps:
+    - name: Fetch secrets
+      id: fetch
+      shell: bash
+      run: node "$ACTION_PATH/dist/index.js"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        BWS_ACCESS_TOKEN: ${{ inputs.ACCESS_TOKEN }}
+        PROJECT_ID: ${{ inputs.PROJECT_ID }}
+        SECRETS: ${{ inputs.SECRETS }}
+        BASE_URL: ${{ inputs.BASE_URL }}
+        BWS_VERSION: ${{ inputs.BWS_VERSION }}
+        BWS_SHA256: ${{ inputs.BWS_SHA256 }}

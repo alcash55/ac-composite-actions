@@ -30,6 +30,7 @@ jobs:
         include:
           - { dir: diff, pm: yarn }
           - { dir: security/betterleaks, pm: yarn }
+          - { dir: security/bitwarden-secrets, pm: yarn }
           - { dir: markdown-checks/spellcheck, pm: yarn }
           - { dir: accessibility/axe-check, pm: yarn }
           - { dir: format-message, pm: yarn }
@@ -97,6 +98,7 @@ jobs:
         include:
           - { dir: diff, pm: yarn }
           - { dir: security/betterleaks, pm: yarn }
+          - { dir: security/bitwarden-secrets, pm: yarn }
           - { dir: ats-check, pm: yarn }
           - { dir: format-message, pm: yarn }
           - { dir: accessibility/axe-check, pm: yarn }

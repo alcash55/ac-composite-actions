@@ -15,6 +15,9 @@ ac-composite-actions/
 │   └── spellcheck/       # Spellcheck markdown diffs
 ├── notifications/        # Send GitHub PR comments or Discord webhooks
 │   └── pr-comment/       # Marker-based upsert of one checker comment per PR
+├── security/
+│   ├── betterleaks/      # Secret scan over PR commits or full history
+│   └── bitwarden-secrets/ # Fetch secrets from Bitwarden Secrets Manager (free plan)
 ├── .github/
 │   └── workflows/
 │       ├── resume-analysis.yml      # Reusable: diff + spellcheck + ATS check + notify
