@@ -15,6 +15,7 @@ action takes effect immediately for every repo that uses it.
 |---|---|---|
 | [`diff`](#diff) | ✅ Ready | Lists the files changed in a pull request |
 | [`security/betterleaks`](#securitybetterleaks) | ✅ Ready | Scans PR commits or full git history for secrets |
+| [`security/bitwarden-secrets`](#securitybitwarden-secrets) | ✅ Ready | Fetches Bitwarden secrets into masked environment variables |
 | [`ats-check`](#ats-check) | ✅ Ready | Scores a resume PDF for ATS compatibility |
 | [`markdown-checks/spellcheck`](#markdown-checksspellcheck) | ✅ Ready | Spellchecks changed markdown with cspell |
 | [`accessibility/axe-check`](#accessibilityaxe-check) | ✅ Ready | Runs @axe-core/playwright's WCAG 2 A/AA ruleset |
@@ -162,6 +163,104 @@ finding comment.
 
 See [the rollout record](security/betterleaks/rollout.md) for all consumer PRs,
 hosted scan results, and the live comment lifecycle validation.
+
+---
+
+## `security/bitwarden-secrets`
+
+Fetches secrets from [Bitwarden Secrets Manager](https://bitwarden.com/help/secrets-manager-overview/) at
+workflow runtime and exports them as masked environment variables for later steps. The
+[Secrets Manager Free plan](https://bitwarden.com/help/secrets-manager-plans/) covers this: up to 2
+users, 3 projects, and 3 machine accounts, at no cost. It uses the same integration Bitwarden
+documents for [GitHub Actions](https://bitwarden.com/help/github-actions-integration/), with one
+addition: a whole project can be fetched by secret name, so a workflow never has to list a UUID
+per secret.
+
+The action downloads a checksum-pinned `bws` CLI release, reads secrets with one `secret list`
+call, and writes each value to `GITHUB_ENV` under the name you choose. Values are masked in the
+log; the action never prints them. Requires a Linux x64 or arm64 runner with `curl`, `unzip`, and
+Node 18 or newer.
+
+### Inputs
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `ACCESS_TOKEN` | ✅ | — | Machine account access token, passed as `${{ secrets.BW_ACCESS_TOKEN }}` |
+| `PROJECT_ID` | — | `""` | Export every secret in this project, each key becoming its environment variable name |
+| `SECRETS` | — | `""` | Newline separated `SECRET_ID > ENV_NAME` pairs for secrets outside the project, or to export one under another name |
+| `BASE_URL` | — | `""` | `https://vault.bitwarden.eu` for the EU cloud, or a self-hosted URL. Empty uses the US cloud |
+| `BWS_VERSION` | — | `2.1.0` | Pinned `bws` version. An override requires `BWS_SHA256` |
+| `BWS_SHA256` | — | `""` | Archive SHA256 for a version override on this runner architecture |
+
+Set `PROJECT_ID`, `SECRETS`, or both. In project mode, secret keys must be valid environment
+variable names (`DB_PASSWORD`, not `DB Password`); the action fails with the offending keys named
+rather than silently skipping them. A name may come from the project or from `SECRETS`, never both.
+An explicit pair may alias a project secret under a second name.
+
+### Outputs
+
+| Output | Description |
+|---|---|
+| `KEYS` | JSON array of the environment variable names that were set |
+
+### Setup
+
+1. Create a free Bitwarden organization, then sign up for Secrets Manager on its Free plan.
+2. Create a project and add each secret you need. The secret's key becomes the environment
+   variable name in project mode.
+3. Create a machine account with read access to that project and copy its access token.
+4. In GitHub, add the token as a repository secret named `BW_ACCESS_TOKEN`. It is the only secret
+   that stays in GitHub.
+
+### Example usage
+
+```yaml
+- name: Fetch secrets
+  uses: alcash55/ac-composite-actions/security/bitwarden-secrets@main
+  with:
+    ACCESS_TOKEN: ${{ secrets.BW_ACCESS_TOKEN }}
+    PROJECT_ID: 7b006643-89c1-4202-a5ca-90510f566030
+
+- name: Run migrations
+  run: node scripts/migrate.js
+  # DATABASE_URL from the project is already in the environment
+```
+
+A secret outside the project, or a second name for one:
+
+```yaml
+- name: Fetch secrets
+  uses: alcash55/ac-composite-actions/security/bitwarden-secrets@main
+  with:
+    ACCESS_TOKEN: ${{ secrets.BW_ACCESS_TOKEN }}
+    PROJECT_ID: 7b006643-89c1-4202-a5ca-90510f566030
+    SECRETS: |
+      be8e0ad8-d545-4017-a55a-b02f014d4158 > NPM_TOKEN
+```
+
+Exported values are available to later steps through `${{ env.NAME }}` and `$NAME`, not inside the
+same step that fetches them. Each line of a multiline value is also masked on its own, except lines
+shorter than 4 characters.
+
+Names the runner relies on are refused: `PATH`, `HOME`, `SHELL`, `IFS`, `ENV`, `BASH_ENV`,
+`NODE_OPTIONS`, and anything starting with `GITHUB_`, `RUNNER_`, `ACTIONS_`, `INPUT_`, `BWS_`, `LD_` or
+`DYLD_`. Store a GitHub token as `GH_TOKEN`, not `GITHUB_TOKEN`.
+
+Fork pull requests and Dependabot runs get no repository secrets. Gate the step with
+`if: github.event.pull_request.head.repo.fork != true && github.actor != 'dependabot[bot]'`.
+
+### Tests
+
+```bash
+cd security/bitwarden-secrets
+yarn
+yarn test
+yarn build
+```
+
+Tests cover input parsing, project and explicit selection, duplicate and invalid-name failures,
+multiline `GITHUB_ENV` output, checksum rejection, and release validation. No network call or
+Bitwarden credential is used.
 
 ---
 
@@ -774,8 +873,9 @@ out rather than wired in to fail (see the comments in `ci.yml` for which ones an
 
 ### Bundled `dist/`
 
-`diff`, `ats-check`, `format-message`, `notifications`, and the `RESULTS_PATH` branch of
-`accessibility/axe-check` run from a committed `dist/` bundle instead of installing at invocation
+`diff`, `ats-check`, `format-message`, `notifications`, `security/betterleaks`,
+`security/bitwarden-secrets`, and the `RESULTS_PATH` branch of `accessibility/axe-check` run from a
+committed `dist/` bundle instead of installing at invocation
 time — [`esbuild`](https://esbuild.github.io/) inlines each action's dependencies into one file, so
 a consumer's job never pays for a network install in its critical path. Each bundled action's
 `package.json` carries a `build` script (`yarn build`, or for `notifications`, `bun run build`)
