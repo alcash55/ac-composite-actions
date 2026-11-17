@@ -239,8 +239,15 @@ A secret outside the project, or a second name for one:
 ```
 
 Exported values are available to later steps through `${{ env.NAME }}` and `$NAME`, not inside the
-same step that fetches them. GitHub masks multiline values line by line, so a fragment on its own
-line can still reach the log; avoid multiline secrets where that matters.
+same step that fetches them. Each line of a multiline value is also masked on its own, except lines
+shorter than 4 characters.
+
+Names the runner relies on are refused: `PATH`, `HOME`, `SHELL`, `IFS`, `ENV`, `BASH_ENV`,
+`NODE_OPTIONS`, and anything starting with `GITHUB_`, `RUNNER_`, `ACTIONS_`, `INPUT_`, `BWS_`, `LD_` or
+`DYLD_`. Store a GitHub token as `GH_TOKEN`, not `GITHUB_TOKEN`.
+
+Fork pull requests and Dependabot runs get no repository secrets. Gate the step with
+`if: github.event.pull_request.head.repo.fork != true && github.actor != 'dependabot[bot]'`.
 
 ### Tests
 

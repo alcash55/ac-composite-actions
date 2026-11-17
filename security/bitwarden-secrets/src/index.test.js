@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-process.env.NODE_ENV = 'test';
 const { parseSecrets, parseSecretList, selectSecrets, envBlock, summary, verifyChecksum, resolveRelease } =
   await import('./index.js');
 
@@ -85,4 +86,19 @@ test('checksum verification fails closed', () => {
 test('release config is validated before anything is downloaded', () => {
   assert.throws(() => resolveRelease({ BWS_VERSION: '../main' }), /stable version/);
   assert.throws(() => resolveRelease({ BWS_VERSION: '1.0.0' }), /requires BWS_SHA256/);
+});
+
+test('reserved runner variable names are rejected in both modes', () => {
+  for (const name of ['PATH', 'LD_PRELOAD', 'NODE_OPTIONS', 'BASH_ENV', 'GITHUB_TOKEN', 'RUNNER_TEMP', 'BWS_ACCESS_TOKEN']) {
+    assert.throws(() => parseSecrets(`${id} > ${name}`), /reserved/, `SECRETS name ${name} should be rejected`);
+    assert.throws(() => selectSecrets([secret({ key: name })], { projectId: project }), /reserved/, `project key ${name} should be rejected`);
+  }
+  assert.deepEqual(parseSecrets(`${id} > GH_TOKEN`), [{ id, name: 'GH_TOKEN' }]);
+});
+
+test('running the entry point under NODE_ENV=test still runs the action', () => {
+  const entry = fileURLToPath(new URL('./index.js', import.meta.url));
+  const result = spawnSync(process.execPath, [entry], { encoding: 'utf8', env: { PATH: process.env.PATH, NODE_ENV: 'test' } });
+  assert.equal(result.status, 1, `expected exit 1, got ${result.status}; stdout: ${result.stdout}`);
+  assert.match(result.stdout, /ACCESS_TOKEN is required/);
 });

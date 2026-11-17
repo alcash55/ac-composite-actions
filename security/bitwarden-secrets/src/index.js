@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 export const VERSION = '2.1.0';
 // Verified with `gh release download bws-v2.1.0` and a local SHA256 check.
@@ -14,6 +15,13 @@ const CHECKSUMS = {
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const SECRET_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HEX256 = /^[a-f0-9]{64}$/;
+// GITHUB_ENV applies to every later step, so a vault key named PATH, LD_PRELOAD
+// or GITHUB_TOKEN would change how the rest of the job runs.
+const RESERVED = /^(PATH|HOME|SHELL|IFS|ENV|BASH_ENV|NODE_OPTIONS|(GITHUB|RUNNER|ACTIONS|INPUT|BWS|LD|DYLD)_.*)$/;
+
+function reservedName(name) {
+  return RESERVED.test(name.toUpperCase());
+}
 
 export function verifyChecksum(bytes, expected) {
   if (!HEX256.test(expected || '') || createHash('sha256').update(bytes).digest('hex') !== expected) {
@@ -37,6 +45,7 @@ export function parseSecrets(raw = '') {
     const [, id, name] = match;
     if (!SECRET_ID.test(id)) throw new Error(`SECRETS line ${index + 1} has an invalid secret id.`);
     if (!ENV_NAME.test(name)) throw new Error(`SECRETS line ${index + 1} has an invalid env name "${name}". Use letters, digits and underscores, and do not start with a digit.`);
+    if (reservedName(name)) throw new Error(`SECRETS line ${index + 1} uses reserved env name "${name}". Pick a name the runner does not use.`);
     if (names.has(name)) throw new Error(`SECRETS sets "${name}" more than once.`);
     names.add(name);
     pairs.push({ id, name });
@@ -74,6 +83,10 @@ export function selectSecrets(secrets, { projectId = '', pairs = [] } = {}) {
     const invalid = inProject.filter((s) => !ENV_NAME.test(s.key)).map((s) => s.key);
     if (invalid.length) {
       throw new Error(`Project secret key${invalid.length > 1 ? 's' : ''} ${invalid.map((k) => `"${k}"`).join(', ')} ${invalid.length > 1 ? 'are' : 'is'} not a valid environment variable name. Rename ${invalid.length > 1 ? 'them' : 'it'}, or list the secret in SECRETS with a valid ENV_NAME.`);
+    }
+    const reserved = inProject.filter((s) => reservedName(s.key)).map((s) => s.key);
+    if (reserved.length) {
+      throw new Error(`Project secret key${reserved.length > 1 ? 's' : ''} ${reserved.map((k) => `"${k}"`).join(', ')} ${reserved.length > 1 ? 'are' : 'is'} reserved for the runner. Rename it in Bitwarden, or list it in SECRETS under another name.`);
     }
     for (const secret of inProject) selected.set(secret.key, secret.value);
   }
@@ -133,7 +146,7 @@ export function resolveRelease(env = process.env) {
 export function install(directory, env = process.env) {
   const { checksum, url } = resolveRelease(env);
   const archive = join(directory, 'bws.zip');
-  const download = spawnSync('curl', ['--fail', '--silent', '--show-error', '--location', '--proto', '=https', '--proto-redir', '=https', '--retry', '3', '--output', archive, url]);
+  const download = spawnSync('curl', ['--fail', '--silent', '--show-error', '--location', '--proto', '=https', '--proto-redir', '=https', '--retry', '3', '--max-time', '120', '--output', archive, url]);
   if (download.status !== 0) throw new Error('Could not download the pinned Bitwarden Secrets Manager CLI.');
   verifyChecksum(readFileSync(archive), checksum);
   const extract = spawnSync('unzip', ['-o', '-q', '-d', directory, archive, 'bws']);
@@ -157,7 +170,7 @@ export function listSecrets(binary, env = process.env, serverUrl = '') {
     ...env,
     BWS_ACCESS_TOKEN: env.BWS_ACCESS_TOKEN,
   };
-  const result = spawnSync(binary, args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, env: childEnv });
+  const result = spawnSync(binary, args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 120_000, env: childEnv });
   if (result.status !== 0) {
     const detail = (result.stderr || '').trim().slice(0, 500);
     throw new Error(`Could not read Bitwarden secrets.${detail ? ` ${detail}` : ''}`);
@@ -167,7 +180,7 @@ export function listSecrets(binary, env = process.env, serverUrl = '') {
 
 export async function run(env = process.env) {
   const token = env.BWS_ACCESS_TOKEN;
-  if (!token) throw new Error('ACCESS_TOKEN is required. Pass a Secrets Manager machine account access token.');
+  if (!token) throw new Error('ACCESS_TOKEN is required. Pass a Secrets Manager machine account access token. Fork pull requests and Dependabot runs get no repository secrets, so skip this step for them.');
   core.setSecret(token);
   const projectId = (env.PROJECT_ID || '').trim();
   const pairs = parseSecrets(env.SECRETS || '');
@@ -180,7 +193,13 @@ export async function run(env = process.env) {
     if (projectId && pairs.length && selected.size === pairs.length) {
       core.warning('PROJECT_ID matched no secrets; only SECRETS entries were exported.');
     }
-    for (const value of selected.values()) if (value) core.setSecret(value);
+    for (const value of selected.values()) {
+      if (!value) continue;
+      core.setSecret(value);
+      // A mask covers one line, so a PEM key or JSON blob printed line by line
+      // would leak its lines. Very short lines are skipped to keep logs readable.
+      for (const line of value.split(/\r?\n/)) if (line.trim().length >= 4) core.setSecret(line.trim());
+    }
     if (!env.GITHUB_ENV) throw new Error('GITHUB_ENV is not set.');
     appendFileSync(env.GITHUB_ENV, envBlock(selected));
     core.setOutput('KEYS', JSON.stringify([...selected.keys()]));
@@ -191,6 +210,8 @@ export async function run(env = process.env) {
   }
 }
 
-if (process.env.NODE_ENV !== 'test') {
+// Run only as the entry point, so tests can import helpers. Checking NODE_ENV
+// instead made the action a silent no-op in jobs that set NODE_ENV=test.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   run().catch((error) => core.setFailed(error.message));
 }
